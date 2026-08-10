@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英语翻译 Agent · 纯前端演示版</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <div class="logo">译</div>
+      <div class="app-info">
+        <h1>英语翻译 Agent</h1>
+        <p class="subtitle">中英双向 · 纯前端演示版 (数据本地加载, 无后端依赖)</p>
+      </div>
+      <div class="online-badge" id="onlineBadge">● 在线</div>
+    </header>
+
+    <div class="lang-bar">
+      <select id="sourceLang" class="lang-select">
+        <option value="auto" selected>自动检测</option>
+        <option value="en">英语</option>
+        <option value="zh">中文</option>
+      </select>
+      <button id="swapBtn" class="swap-btn" title="交换语言方向">⇄</button>
+      <select id="targetLang" class="lang-select">
+        <option value="auto" selected>自动检测</option>
+        <option value="en">英语</option>
+        <option value="zh">中文</option>
+      </select>
+    </div>
+
+    <div class="panes">
+      <div class="pane">
+        <div class="pane-header">
+          <span class="pane-title">原文</span>
+          <span class="char-count" id="charCount">0 / 5000</span>
+        </div>
+        <textarea id="inputText" class="pane-input"
+                  placeholder="请输入要翻译的英文或中文，例如：Hello, how are you?"></textarea>
+        <div class="pane-footer">
+          <button id="clearBtn" class="ghost-btn">清空</button>
+        </div>
+      </div>
+
+      <div class="pane">
+        <div class="pane-header">
+          <span class="pane-title">译文</span>
+          <span class="engine-tag" id="engineTag"></span>
+        </div>
+        <div id="outputText" class="pane-output" aria-live="polite">
+          <span class="placeholder">译文将显示在这里</span>
+        </div>
+        <div class="pane-footer">
+          <button id="copyBtn" class="ghost-btn" disabled>复制</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <label class="online-toggle">
+        <input type="checkbox" id="useOnline" checked>
+        <span>使用在线增强</span>
+      </label>
+      <button id="translateBtn" class="primary-btn"><span class="btn-icon">⚡</span> 翻 译</button>
+    </div>
+
+    <div id="warningBox" class="warning-box hidden"></div>
+    <div id="metaBar" class="meta-bar hidden"></div>
+  </div>
+
+  <footer class="app-footer">
+    数据来源: <a href="https://www.mdbg.net/chinese/dictionary?page=cc-cedict" target="_blank" rel="noopener">CC-CEDICT</a> (CC BY-SA 4.0) · 在线增强: MyMemory
+  </footer>
+
+  <script src="js/dict.js"></script>
+  <script src="js/translator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

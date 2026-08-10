@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# Python 缓存
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+
+# 测试
+tests/
+test_*
+
+# 构建产物
+*.zip
+build/
+dist/
+
+# 演示版(单独部署)
+static-demo/
+
+# 运行时数据(容器内自动生成)
+translator/data/tm.sqlite
+translator/data/settings.json
+translator/data/glossary.json
+uploads/
+
+# 文档
+*.md
+!README.md
+
+# IDE
+.vscode
+.idea
