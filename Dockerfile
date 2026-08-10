@@ -30,4 +30,4 @@ USER appuser
 EXPOSE 5000
 
 # 使用 gunicorn 生产服务器, 自动读取 PORT 环境变量
-CMD ["sh", "-c", "gunicorn wsgi:app --bind 0.0.0.0:${PORT:-5000} --workers 2 --timeout 120"]
+CMD ["sh", "-c", "gunicorn wsgi:app --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 4 --timeout 120"]
