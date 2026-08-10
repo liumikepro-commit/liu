@@ -405,7 +405,7 @@
     settingsModal.classList.remove("hidden");
     fetch("/api/settings").then(function (r) { return r.json(); }).then(function (data) {
       settingsData = data;
-      providerSelect.value = data.translator_provider || "mymemory";
+      providerSelect.value = data.translator_provider || "google";
       renderKeyFields();
       renderGlossary();
       tmEnabled.checked = data.tm_enabled !== false;
@@ -417,7 +417,7 @@
     var provider = providerSelect.value;
     var fields = PROVIDER_FIELDS[provider] || [];
     if (!fields.length) {
-      keyFields.innerHTML = '<p class="settings-hint">MyMemory 为免费公共接口，无需配置 Key。</p>';
+      keyFields.innerHTML = '<p class="settings-hint">Google / MyMemory 为免费引擎，无需配置 Key。</p>';
       return;
     }
     keyFields.innerHTML = "";

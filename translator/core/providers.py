@@ -77,6 +77,17 @@ class MyMemoryProvider(BaseProvider):
     display_name = "MyMemory (免费)"
 
     def translate(self, text, source, target):
+        try:
+            return self._translate_mymemory(text, source, target)
+        except Exception as my_err:
+            # MyMemory 不可用(数据中心 IP 限流/网络问题)时自动降级到 Google 免费端点
+            try:
+                return GoogleTranslateProvider().translate(text, source, target)
+            except Exception:
+                raise RuntimeError(
+                    f"MyMemory 与备用引擎均不可用: {my_err}")
+
+    def _translate_mymemory(self, text, source, target):
         src = MYMEMORY_LANG_MAP.get(source, source)
         tgt = MYMEMORY_LANG_MAP.get(target, target)
         langpair = f"{src}|{tgt}"
@@ -92,6 +103,48 @@ class MyMemoryProvider(BaseProvider):
         if translated.startswith("MYMEMORY WARNING"):
             raise RuntimeError("MyMemory 免费额度已用尽，请稍后再试或配置自有 API Key。")
         return translated
+
+
+class GoogleTranslateProvider(BaseProvider):
+    """
+    Google 翻译免费端点(无需 Key, 默认引擎)。
+    使用 translate.googleapis.com 的 client=gtx 端点, 非官方 API, 无配额限制。
+    支持 10 种语言与汉语互译, 质量优于 MyMemory。
+    """
+    name = "google"
+    display_name = "Google 翻译 (免费)"
+
+    # Google 使用 ISO 639-1 代码; zh 需带区域
+    _LANG_MAP = {
+        "zh": "zh-CN", "en": "en", "ja": "ja", "ko": "ko", "fr": "fr",
+        "de": "de", "es": "es", "ru": "ru", "ar": "ar", "pt": "pt", "th": "th",
+    }
+
+    def translate(self, text, source, target):
+        try:
+            return self._translate_google(text, source, target)
+        except Exception:
+            # Google 不可用时降级到 MyMemory(国内网络环境 Google 不可达)
+            try:
+                return MyMemoryProvider().translate(text, source, target)
+            except Exception as my_err:
+                raise RuntimeError(f"Google 与备用引擎均不可用: {my_err}")
+
+    def _translate_google(self, text, source, target):
+        src = self._LANG_MAP.get(source, source)
+        tgt = self._LANG_MAP.get(target, target)
+        url = ("https://translate.googleapis.com/translate_a/single"
+               f"?client=gtx&sl={urllib.parse.quote(src)}&tl={urllib.parse.quote(tgt)}"
+               f"&dt=t&q={urllib.parse.quote(text)}")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=ONLINE_TIMEOUT) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        try:
+            # 响应: [[["译文","原文",...],...], ...]
+            parts = [seg[0] for seg in payload[0] if seg and seg[0]]
+            return "".join(parts)
+        except (KeyError, IndexError, TypeError):
+            raise RuntimeError("Google 翻译返回格式异常")
 
 
 class DeepLProvider(BaseProvider):
@@ -267,6 +320,7 @@ class OpenAIProvider(BaseProvider):
 # 提供商工厂
 # ---------------------------------------------------------------
 _PROVIDERS = {
+    "google": GoogleTranslateProvider,
     "mymemory": MyMemoryProvider,
     "deepl": DeepLProvider,
     "baidu": BaiduProvider,
@@ -293,8 +347,8 @@ def get_provider(name: str = None) -> BaseProvider:
 
 
 def provider_ready(name: str) -> bool:
-    """判断指定提供商是否已配置可用 Key(MyMemory 永远可用)"""
-    if name == "mymemory":
+    """判断指定提供商是否已配置可用 Key(Google/MyMemory 永远可用)"""
+    if name in ("google", "mymemory"):
         return True
     checks = {
         "deepl": lambda: bool(_get("deepl_api_key", DEEPL_API_KEY)),

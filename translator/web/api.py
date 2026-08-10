@@ -229,7 +229,7 @@ def api_get_settings():
     """读取当前设置(Key 只返回是否已配置, 不回显明文)"""
     settings = _load_settings_file()
     providers_list = providers.list_providers()
-    current = settings.get("translator_provider", "mymemory")
+    current = settings.get("translator_provider", "google")
 
     def mask(name):
         return bool(settings.get(name, ""))
@@ -268,7 +268,7 @@ def api_put_settings():
             settings[key] = value
 
     if settings.get("translator_provider") not in (
-            "mymemory", "deepl", "baidu", "tencent", "openai"):
+            "google", "mymemory", "deepl", "baidu", "tencent", "openai"):
         return jsonify({"error": "不支持的翻译引擎。"}), 400
 
     _save_settings_file(settings)

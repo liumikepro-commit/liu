@@ -357,10 +357,16 @@ def translate(text: str, source: str = "auto", target: str = "auto",
                 "warning": None,
                 "relay": False,
             }
-        except Exception:
+        except Exception as exc:
             if not has_local_dict:
-                # 非英汉语言对无法回退本地, 返回错误
-                raise
+                # 非英汉语言对无法回退本地, 返回友好错误(避免 500)
+                return {
+                    "error": f"在线翻译暂时不可用（{exc}），请稍后重试，"
+                             "或在「设置」中配置其他翻译引擎。",
+                    "translation": "", "source": src, "target": tgt,
+                    "engine": "none", "coverage": 0.0, "uncovered": [],
+                    "warning": None, "relay": False,
+                }
             pass  # 英汉对静默回退本地
 
     # ---- 7. 本地翻译(仅英汉双向, 逐句) ----

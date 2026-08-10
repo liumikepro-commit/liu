@@ -30,4 +30,5 @@ USER appuser
 EXPOSE 5000
 
 # 使用 gunicorn 生产服务器, 自动读取 PORT 环境变量
+# 免费实例内存较小(512MB), 使用单 worker + 线程模式避免 OOM
 CMD ["sh", "-c", "gunicorn wsgi:app --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 4 --timeout 120"]

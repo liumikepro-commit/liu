@@ -6,22 +6,22 @@ config.py — 全局配置
 import os
 
 # ---------- 输入限制 ----------
-MAX_INPUT_LEN = 1000000        # 单次请求最大输入字符数(超出提示分段翻译)
+MAX_INPUT_LEN = 5000        # 单次请求最大输入字符数(超出提示分段翻译)
 MAX_SENTENCE_LEN = 500      # 单句最大长度(超长截断, 防性能问题)
 
 # ---------- 在线翻译增强 ----------
-# 默认使用 MyMemory 免费公共 API(无需注册/Key), 仅在需要更高翻译质量时开启。
-# 注意: 公共 API 有频率限制, 生产环境建议替换为付费服务或自建服务。
+# 默认使用 Google 翻译免费端点(无需注册/Key, 质量好, 无配额限制)。
+# Google 不可达(如国内内网)时自动回退 MyMemory 免费公共 API。
 # 占位符: {q}=原文URL编码, {langpair}=语言对(如 en|zh-CN)
 ONLINE_TRANSLATE_ENABLED = True
 ONLINE_API_URL = "https://api.mymemory.translated.net/get?q={q}&langpair={langpair}"
 ONLINE_TIMEOUT = 15          # 在线请求超时(秒), 超时/失败自动回退本地翻译
 
 # ---------- 翻译引擎提供商(自定义 API Key) ----------
-# 可选: mymemory | deepl | baidu | tencent | openai
-# 未配置对应 Key 时自动回退 MyMemory 免费接口。
+# 可选: google | mymemory | deepl | baidu | tencent | openai
+# google/mymemory 为免费引擎(互为备用); 其余需要配置 Key。
 # 也可在 Web 界面「设置」中动态配置(保存在 translator/data/settings.json)。
-TRANSLATOR_PROVIDER = "mymemory"
+TRANSLATOR_PROVIDER = "google"
 
 DEEPL_API_KEY = ""          # DeepL: https://www.deepl.com/pro-api (支持免费版)
 BAIDU_APP_ID = ""           # 百度翻译开放平台: https://fanyi-api.baidu.com
