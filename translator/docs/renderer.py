@@ -111,21 +111,48 @@ def render_docx(model: DocumentModel, out_path: str):
 def _register_cjk_fonts() -> tuple:
     """
     注册中文字体到 reportlab, 返回 (普通字体名, 粗体字体名)。
-    动态探测系统中文字体; 找不到时回退 Helvetica(中文将无法显示)。
+
+    优先级:
+    1. 外部 TTF/TTC 字体(逐个尝试, 注册失败自动跳过——
+       例如 NotoSansCJK.ttc 的 PostScript 轮廓 reportlab 不支持, 会抛异常)
+    2. reportlab 内置 CID 字体 STSong-Light(零依赖, Docker/任意环境可用, 支持简体中文)
+    3. Helvetica(最终兜底, 中文将无法显示)
     """
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
-    reg_path = next((p for p in _CJK_REGULAR_FONTS if os.path.exists(p)), None)
-    bold_path = next((p for p in _CJK_BOLD_FONTS if os.path.exists(p)), None)
+    registered = pdfmetrics.getRegisteredFontNames()
 
-    if reg_path:
-        pdfmetrics.registerFont(TTFont("CJK", reg_path))
-        if bold_path:
-            pdfmetrics.registerFont(TTFont("CJK-Bold", bold_path))
-            return "CJK", "CJK-Bold"
-        return "CJK", "CJK"  # 无粗体时粗体退化为普通
-    return "Helvetica", "Helvetica-Bold"
+    # 1. 尝试外部字体文件(Windows msyh / Linux Noto)
+    for reg_path in _CJK_REGULAR_FONTS:
+        if not os.path.exists(reg_path):
+            continue
+        try:
+            if "CJK" not in registered:
+                pdfmetrics.registerFont(TTFont("CJK", reg_path))
+                registered = pdfmetrics.getRegisteredFontNames()
+        except Exception:
+            continue  # 文件存在但 reportlab 无法加载(如 PostScript 轮廓的 ttc), 试下一个
+        # 普通字体注册成功, 再尝试粗体
+        for bold_path in _CJK_BOLD_FONTS:
+            if not os.path.exists(bold_path):
+                continue
+            try:
+                if "CJK-Bold" not in registered:
+                    pdfmetrics.registerFont(TTFont("CJK-Bold", bold_path))
+                return "CJK", "CJK-Bold"
+            except Exception:
+                continue
+        return "CJK", "CJK"  # 无可用粗体时粗体退化为普通
+
+    # 2. 回退 reportlab 内置中文 CID 字体(无需任何字体文件)
+    try:
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        if "STSong-Light" not in registered:
+            pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+        return "STSong-Light", "STSong-Light"
+    except Exception:
+        return "Helvetica", "Helvetica-Bold"  # 最终兜底
 
 
 def render_pdf(model: DocumentModel, out_path: str):
