@@ -44,7 +44,7 @@ def main():
         print("[提示] 在线增强已关闭, 仅使用本地词典翻译。")
 
     print("=" * 52)
-    print("  翻译 Agent (English Translator)")
+    print("  翻译软件 Agent (Translator Software)")
     print(f"  在线增强: {'开启' if ONLINE_TRANSLATE_ENABLED else '关闭'}")
     print(f"  服务地址: http://{args.host}:{args.port}")
     print("=" * 52)
