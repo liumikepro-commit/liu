@@ -24,8 +24,10 @@
   // 文档翻译相关 DOM
   var tabText = document.getElementById("tabText");
   var tabDoc = document.getElementById("tabDoc");
+  var tabImage = document.getElementById("tabImage");
   var panelText = document.getElementById("panelText");
   var panelDoc = document.getElementById("panelDoc");
+  var panelImage = document.getElementById("panelImage");
   var dropZone = document.getElementById("dropZone");
   var fileInput = document.getElementById("fileInput");
   var fileInfo = document.getElementById("fileInfo");
@@ -218,14 +220,19 @@
 
   // ---- Tab 切换 ----
   function switchTab(which) {
+    var isText = which === "text";
     var isDoc = which === "doc";
-    tabText.classList.toggle("active", !isDoc);
+    var isImage = which === "image";
+    tabText.classList.toggle("active", isText);
     tabDoc.classList.toggle("active", isDoc);
-    panelText.classList.toggle("hidden", isDoc);
+    tabImage.classList.toggle("active", isImage);
+    panelText.classList.toggle("hidden", !isText);
     panelDoc.classList.toggle("hidden", !isDoc);
+    panelImage.classList.toggle("hidden", !isImage);
   }
   tabText.addEventListener("click", function () { switchTab("text"); });
   tabDoc.addEventListener("click", function () { switchTab("doc"); });
+  tabImage.addEventListener("click", function () { switchTab("image"); });
 
   // ---- 文件选择: 点击 & 拖拽 ----
   dropZone.addEventListener("click", function () { fileInput.click(); });
@@ -355,6 +362,157 @@
   }
   function hideDocError() {
     docErrorBox.classList.add("hidden");
+  }
+
+  // ============================================================
+  // 图片翻译逻辑 (OCR 识别图片内文字 -> 翻译 -> PDF)
+  // ============================================================
+  var imgDropZone = document.getElementById("imgDropZone");
+  var imgFileInput = document.getElementById("imgFileInput");
+  var imgFileInfo = document.getElementById("imgFileInfo");
+  var imgFileName = document.getElementById("imgFileName");
+  var imgRemoveFileBtn = document.getElementById("imgRemoveFileBtn");
+  var imgTranslateBtn = document.getElementById("imgTranslateBtn");
+  var imgProgressArea = document.getElementById("imgProgressArea");
+  var imgProgressBar = document.getElementById("imgProgressBar");
+  var imgProgressText = document.getElementById("imgProgressText");
+  var imgResultArea = document.getElementById("imgResultArea");
+  var imgDownloadPdf = document.getElementById("imgDownloadPdf");
+  var imgErrorBox = document.getElementById("imgErrorBox");
+  var imgUseOnline = document.getElementById("imgUseOnline");
+  var imgBilingual = document.getElementById("imgBilingual");
+  var imgSourceLang = document.getElementById("imgSourceLang");
+  var imgTargetLang = document.getElementById("imgTargetLang");
+
+  var selectedImage = null;
+  var imageTaskId = null;
+  var IMG_EXTS = ["png", "jpg", "jpeg", "bmp", "webp", "tiff", "tif"];
+
+  // ---- 图片选择: 点击 & 拖拽 ----
+  imgDropZone.addEventListener("click", function () { imgFileInput.click(); });
+  imgDropZone.addEventListener("dragover", function (e) {
+    e.preventDefault();
+    imgDropZone.classList.add("drag-over");
+  });
+  imgDropZone.addEventListener("dragleave", function () {
+    imgDropZone.classList.remove("drag-over");
+  });
+  imgDropZone.addEventListener("drop", function (e) {
+    e.preventDefault();
+    imgDropZone.classList.remove("drag-over");
+    if (e.dataTransfer.files.length) selectImage(e.dataTransfer.files[0]);
+  });
+  imgFileInput.addEventListener("change", function () {
+    if (imgFileInput.files.length) selectImage(imgFileInput.files[0]);
+  });
+
+  function selectImage(file) {
+    var ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (IMG_EXTS.indexOf(ext) === -1) {
+      showImgError("不支持的文件格式 ." + ext +
+                   "，请上传图片（PNG / JPG / JPEG / BMP / WEBP）。");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showImgError("文件过大（" + Math.round(file.size / 1048576) +
+                   "MB），单文件请控制在 20MB 以内。");
+      return;
+    }
+    selectedImage = file;
+    imgFileName.textContent = "🖼️ " + file.name +
+      "（" + Math.round(file.size / 1024) + " KB）";
+    imgFileInfo.classList.remove("hidden");
+    imgDropZone.classList.add("hidden");
+    imgTranslateBtn.disabled = false;
+    hideImgError();
+    hideImgResult();
+  }
+
+  imgRemoveFileBtn.addEventListener("click", function () {
+    selectedImage = null;
+    imgFileInfo.classList.add("hidden");
+    imgDropZone.classList.remove("hidden");
+    imgTranslateBtn.disabled = true;
+  });
+
+  // ---- 上传并翻译 ----
+  imgTranslateBtn.addEventListener("click", function () {
+    if (!selectedImage) return;
+    var fd = new FormData();
+    fd.append("file", selectedImage);
+    fd.append("source", imgSourceLang.value);
+    fd.append("target", imgTargetLang.value);
+    fd.append("use_online", imgUseOnline.checked ? "true" : "false");
+    fd.append("bilingual", imgBilingual.checked ? "true" : "false");
+
+    imgTranslateBtn.disabled = true;
+    hideImgError();
+    hideImgResult();
+    imgProgressArea.classList.remove("hidden");
+    setImgProgress(0, "正在上传图片…");
+
+    fetch("/api/images/translate", { method: "POST", body: fd })
+      .then(function (resp) { return resp.json().then(function (d) { return { ok: resp.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.data.error || "上传失败");
+        imageTaskId = res.data.task_id;
+        pollImageStatus();
+      })
+      .catch(function (err) {
+        imgProgressArea.classList.add("hidden");
+        showImgError(err.message || "上传失败，请重试。");
+        imgTranslateBtn.disabled = false;
+      });
+  });
+
+  // ---- 进度轮询 ----
+  function pollImageStatus() {
+    if (!imageTaskId) return;
+    fetch("/api/documents/status/" + imageTaskId)
+      .then(function (resp) { return resp.json(); })
+      .then(function (task) {
+        if (task.error) throw new Error(task.error);
+        if (task.status === "running" || task.status === "pending") {
+          setImgProgress(task.progress || 0, task.message || "处理中…");
+          setTimeout(pollImageStatus, 1200);
+        } else if (task.status === "done") {
+          setImgProgress(100, "翻译完成");
+          finishImgSuccess();
+        } else {
+          imgProgressArea.classList.add("hidden");
+          showImgError(task.error || "图片处理失败，请重试。");
+          imgTranslateBtn.disabled = false;
+        }
+      })
+      .catch(function (err) {
+        imgProgressArea.classList.add("hidden");
+        showImgError(err.message || "查询任务状态失败。");
+        imgTranslateBtn.disabled = false;
+      });
+  }
+
+  function setImgProgress(pct, msg) {
+    imgProgressBar.style.width = pct + "%";
+    imgProgressText.textContent = msg;
+  }
+
+  function finishImgSuccess() {
+    setTimeout(function () {
+      imgProgressArea.classList.add("hidden");
+      imgResultArea.classList.remove("hidden");
+      imgDownloadPdf.href = "/api/documents/download/" + imageTaskId;
+      imgTranslateBtn.disabled = false;
+    }, 400);
+  }
+  function hideImgResult() {
+    imgResultArea.classList.add("hidden");
+  }
+  function showImgError(msg) {
+    imgErrorBox.textContent = "⚠ " + msg;
+    imgErrorBox.classList.remove("hidden");
+  }
+  function hideImgError() {
+    imgErrorBox.classList.add("hidden");
   }
 
   // ============================================================

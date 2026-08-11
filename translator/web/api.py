@@ -24,6 +24,7 @@ from ..core import providers, glossary as glossary_mod, tm as tm_mod
 from ..core.languages import SUPPORTED_LANGUAGES as LANG_MAP
 from ..docs.parser import validate_format
 from ..docs import tasks as doc_tasks
+from ..docs import ocr as ocr_mod
 
 # 静态资源目录
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -195,6 +196,68 @@ def api_document_download(task_id):
         path, as_attachment=True,
         download_name=download_name,
     )
+
+
+@web_bp.route("/api/images/translate", methods=["POST"])
+def api_image_translate():
+    """
+    图片识别翻译接口(multipart/form-data):
+        file:       PNG/JPG/JPEG/BMP/WEBP 图片
+        source:     auto|zh|en|ja|...     源语言(默认自动检测)
+        target:     auto|zh|en|ja|...     目标语言
+        use_online: true|false            是否使用在线增强
+        bilingual:  true|false            是否双语对照导出
+    流程: 图片 OCR 识别文字 -> 翻译 -> 导出 PDF
+    """
+    uploaded = request.files.get("file")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"error": "未收到图片，请选择要识别的图片。"}), 400
+
+    filename = uploaded.filename
+    # 格式校验(不支持/损坏格式给出清晰中文提示)
+    try:
+        ocr_mod.validate_image_format(filename)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    # 大小校验
+    uploaded.stream.seek(0, os.SEEK_END)
+    size = uploaded.stream.tell()
+    uploaded.stream.seek(0)
+    if size > MAX_UPLOAD_SIZE:
+        return jsonify({"error": f"文件过大（{size // 1024 // 1024}MB），"
+                                 f"单文件请控制在 {MAX_UPLOAD_SIZE // 1024 // 1024}MB 以内。"}), 400
+
+    source = request.form.get("source", "auto")
+    target = request.form.get("target", "auto")
+    use_online = request.form.get("use_online", "true").lower() == "true"
+    bilingual = request.form.get("bilingual", "false").lower() == "true"
+
+    if source not in SUPPORTED_LANGUAGES:
+        return jsonify({"error": f"不支持的 source: {source}"}), 400
+    if target not in SUPPORTED_LANGUAGES:
+        return jsonify({"error": f"不支持的 target: {target}"}), 400
+
+    # 保存上传文件到临时区
+    os.makedirs(doc_tasks.UPLOAD_DIR, exist_ok=True)
+    safe_name = secure_filename(filename) or "image"
+    save_path = os.path.join(
+        doc_tasks.UPLOAD_DIR,
+        f"src_{int(time.time())}_{safe_name}",
+    )
+    uploaded.save(save_path)
+
+    task_id = doc_tasks.create_task(
+        filename=filename,
+        file_path=save_path,
+        source=source,
+        target=target,
+        use_online=use_online,
+        bilingual=bilingual,
+        kind="image",
+    )
+    return jsonify({"task_id": task_id, "message": "任务已创建",
+                    "bilingual": bilingual, "kind": "image"})
 
 
 
