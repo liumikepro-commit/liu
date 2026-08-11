@@ -34,6 +34,7 @@
   var docSourceLang = document.getElementById("docSourceLang");
   var docTargetLang = document.getElementById("docTargetLang");
   var docUseOnline = document.getElementById("docUseOnline");
+  var docBilingual = document.getElementById("docBilingual");
   var docTranslateBtn = document.getElementById("docTranslateBtn");
   var progressArea = document.getElementById("progressArea");
   var progressBar = document.getElementById("progressBar");
@@ -281,6 +282,7 @@
     fd.append("source", docSourceLang.value);
     fd.append("target", docTargetLang.value);
     fd.append("use_online", docUseOnline.checked ? "true" : "false");
+    fd.append("bilingual", docBilingual.checked ? "true" : "false");
 
     docTranslateBtn.disabled = true;
     hideDocError();

@@ -248,6 +248,137 @@ def render_pdf(model: DocumentModel, out_path: str):
     doc.build(story)
 
 
+def render_pdf_bilingual(src_model: DocumentModel, tgt_model: DocumentModel,
+                         out_path: str):
+    """
+    双语对照 PDF: 每个内容块先译文(正常)后原文(灰色小字), 表格译文在上原文在下。
+    用于翻译后核对; 不改变 render_pdf 的单译文导出行为。
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_RIGHT
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    )
+
+    font_name, font_bold = _register_cjk_fonts()
+
+    styles = {
+        "body": ParagraphStyle(
+            "body", fontName=font_name, fontSize=11, leading=18,
+            alignment=TA_JUSTIFY, wordWrap="CJK"),
+        "heading1": ParagraphStyle(
+            "h1", fontName=font_bold, fontSize=20, leading=26,
+            spaceBefore=14, spaceAfter=10, textColor=colors.black),
+        "heading2": ParagraphStyle(
+            "h2", fontName=font_bold, fontSize=16, leading=22,
+            spaceBefore=10, spaceAfter=8),
+        "heading3": ParagraphStyle(
+            "h3", fontName=font_bold, fontSize=13, leading=18,
+            spaceBefore=8, spaceAfter=6),
+        "list": ParagraphStyle(
+            "list", fontName=font_name, fontSize=11, leading=18,
+            leftIndent=18, bulletIndent=6, wordWrap="CJK"),
+        "table": ParagraphStyle(
+            "table", fontName=font_name, fontSize=10, leading=14, wordWrap="CJK"),
+        # 原文样式: 灰色小字, 与译文区分
+        "src": ParagraphStyle(
+            "src", fontName=font_name, fontSize=8.5, leading=13,
+            textColor=colors.grey, wordWrap="CJK"),
+        "src_table": ParagraphStyle(
+            "src_table", fontName=font_name, fontSize=8, leading=12,
+            textColor=colors.grey, wordWrap="CJK"),
+    }
+
+    doc = SimpleDocTemplate(
+        out_path, pagesize=A4,
+        leftMargin=20 * mm, rightMargin=20 * mm,
+        topMargin=18 * mm, bottomMargin=18 * mm,
+        title=tgt_model.meta.get("title", "Bilingual Translation"),
+    )
+    story = []
+
+    def _render_block(b, is_src: bool):
+        """渲染单个文本块; is_src=True 时用灰色小字样式"""
+        text = b.text or ""
+        if not text.strip():
+            story.append(Spacer(1, 4))
+            return
+        if b.kind == KIND_HEADING:
+            level = b.meta.get("level", 1)
+            st = styles.get(f"heading{min(level, 3)}", styles["heading1"])
+            if is_src:
+                st = ParagraphStyle(
+                    "src-h", parent=st, fontName=font_name, fontSize=9,
+                    leading=14, textColor=colors.grey)
+            story.append(Paragraph(_escape(text), st))
+        elif b.kind == KIND_LIST_ITEM:
+            st = styles["src"] if is_src else styles["list"]
+            story.append(Paragraph(_escape(text), st, bulletText="•"))
+        else:
+            align = b.style.get("align", 4)
+            st = styles["src"] if is_src else styles["body"]
+            if align == 1:
+                st = ParagraphStyle("c", parent=st, alignment=TA_CENTER)
+            elif align == 2:
+                st = ParagraphStyle("r", parent=st, alignment=TA_RIGHT)
+            if b.style.get("bold") and not is_src:
+                st = ParagraphStyle("b", parent=st, fontName=font_bold)
+            story.append(Paragraph(_escape(text), st))
+
+    def _render_table(tbl, is_src: bool):
+        if not tbl:
+            return
+        data = []
+        for row in tbl:
+            data.append([
+                Paragraph(_escape(" ".join(
+                    cb.text for cb in cell
+                    if cb.text and cb.text.strip())),
+                    styles["src_table"] if is_src else styles["table"])
+                for cell in row
+            ])
+        if data:
+            t = Table(data, hAlign="LEFT")
+            t.setStyle(TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            story.append(t)
+
+    src_blocks = list(src_model.blocks) if src_model else []
+
+    # 内容块: 译文 + 原文(上下对照)
+    for i, b in enumerate(tgt_model.blocks):
+        if b.kind == KIND_EMPTY or not (b.text or "").strip():
+            story.append(Spacer(1, 6))
+            continue
+        _render_block(b, is_src=False)          # 译文
+        s_b = src_blocks[i] if i < len(src_blocks) else None
+        if s_b and (s_b.text or "").strip():
+            _render_block(s_b, is_src=True)     # 原文(灰色小字)
+        story.append(Spacer(1, 8))              # 对照块之间留间隔
+
+    # 表格: 译文表格 + 原文表格
+    for ti, tbl in enumerate(tgt_model.tables):
+        if not tbl:
+            continue
+        _render_table(tbl, is_src=False)
+        src_tbl = (src_model.tables[ti]
+                   if src_model and ti < len(src_model.tables) else None)
+        if src_tbl:
+            _render_table(src_tbl, is_src=True)
+        story.append(Spacer(1, 8))
+
+    doc.build(story)
+
+
 def _escape(text: str) -> str:
     """转义 XML 特殊字符(Paragraph 使用 XML 标记)"""
     return (text.replace("&", "&amp;").replace("<", "&lt;")

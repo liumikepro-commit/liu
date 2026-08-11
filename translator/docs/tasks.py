@@ -7,6 +7,7 @@ tasks.py — 文档翻译后台任务管理
 任务状态机: pending -> running -> done | error
 任务表保存在内存(单机场景); 服务重启后任务丢失, 输出文件保留在磁盘。
 """
+import copy
 import os
 import threading
 import time
@@ -14,7 +15,7 @@ import uuid
 
 from .parser import parse_document
 from .pipeline import translate_document
-from .renderer import export_document
+from .renderer import export_document, render_pdf_bilingual
 
 # 输出目录: 项目根/uploads
 UPLOAD_DIR = os.path.join(
@@ -31,7 +32,7 @@ def _new_task_id() -> str:
 
 
 def create_task(filename: str, file_path: str, source: str,
-                target: str, use_online: bool) -> str:
+                target: str, use_online: bool, bilingual: bool = False) -> str:
     """创建任务并启动后台线程, 返回 task_id"""
     task_id = _new_task_id()
     task = {
@@ -40,6 +41,7 @@ def create_task(filename: str, file_path: str, source: str,
         "progress": 0, "total": 0, "current": "",
         "message": "任务已创建", "error": None,
         "source_name": filename,
+        "bilingual": bilingual,     # 是否导出双语对照
         "files": {"docx": None, "pdf": None},
         "created_at": time.time(), "updated_at": time.time(),
     }
@@ -48,7 +50,7 @@ def create_task(filename: str, file_path: str, source: str,
 
     thread = threading.Thread(
         target=_run_task,
-        args=(task_id, filename, file_path, source, target, use_online),
+        args=(task_id, filename, file_path, source, target, use_online, bilingual),
         daemon=True,
     )
     thread.start()
@@ -70,12 +72,15 @@ def _update(task_id: str, **kwargs):
             task["updated_at"] = time.time()
 
 
-def _run_task(task_id, filename, file_path, source, target, use_online):
+def _run_task(task_id, filename, file_path, source, target, use_online, bilingual):
     """后台执行: 解析 -> 翻译 -> 导出"""
     try:
         # ---- 1. 解析 ----
         _update(task_id, status="running", message="正在解析文档…")
         model = parse_document(filename, file_path)
+
+        # 双语对照: 翻译前深拷贝保留原文模型(原译文导出行为不受影响)
+        src_model = copy.deepcopy(model) if bilingual else None
 
         # ---- 2. 翻译 ----
         blocks = list(model.iter_blocks())
@@ -98,7 +103,10 @@ def _run_task(task_id, filename, file_path, source, target, use_online):
 
         _update(task_id, message="正在生成 PDF 文件…")
         out_path = f"{base}.pdf"
-        export_document(model, "pdf", out_path)
+        if bilingual:
+            render_pdf_bilingual(src_model, model, out_path)
+        else:
+            export_document(model, "pdf", out_path)
         results["pdf"] = out_path
 
         _update(task_id, status="done", progress=100,

@@ -137,6 +137,7 @@ def api_document_translate():
     source = request.form.get("source", "auto")
     target = request.form.get("target", "auto")
     use_online = request.form.get("use_online", "true").lower() == "true"
+    bilingual = request.form.get("bilingual", "false").lower() == "true"
 
     if source not in SUPPORTED_LANGUAGES:
         return jsonify({"error": f"不支持的 source: {source}"}), 400
@@ -158,8 +159,10 @@ def api_document_translate():
         source=source,
         target=target,
         use_online=use_online,
+        bilingual=bilingual,
     )
-    return jsonify({"task_id": task_id, "message": "任务已创建"})
+    return jsonify({"task_id": task_id, "message": "任务已创建",
+                    "bilingual": bilingual})
 
 
 @web_bp.route("/api/documents/status/<task_id>")
@@ -186,7 +189,8 @@ def api_document_download(task_id):
         return jsonify({"error": "翻译结果文件不存在，请重新翻译。"}), 404
 
     base = os.path.splitext(task["source_name"])[0] or "translated"
-    download_name = f"{base}_translated.pdf"
+    suffix = "_bilingual" if task.get("bilingual") else "_translated"
+    download_name = f"{base}{suffix}.pdf"
     return send_file(
         path, as_attachment=True,
         download_name=download_name,
