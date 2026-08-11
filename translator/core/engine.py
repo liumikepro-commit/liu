@@ -222,7 +222,7 @@ def _to_en_punct(ch: str) -> str:
 
 def _clean_zh_en_gloss(gloss: str) -> str:
     """
-    清洗中文词条释义, 提取最简洁的英文翻译:
+    清洗中文词条释义, 提取最简洁的译文:
     - "to eat; to consume" -> "eat"
     - "book; letter" -> "book"
     - "computer; CL:臺|台[tai2]" -> "computer"

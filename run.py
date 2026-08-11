@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-run.py — 英语翻译 Agent 启动入口
+run.py — 翻译 Agent 启动入口
 
 用法:
     python run.py            # 启动 Web 服务(默认 http://localhost:5000)
@@ -29,7 +29,7 @@ def create_app() -> Flask:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="英语翻译 Agent")
+    parser = argparse.ArgumentParser(description="翻译 Agent")
     parser.add_argument("--host", default=HOST, help="绑定地址")
     parser.add_argument("--port", type=int, default=PORT, help="端口")
     parser.add_argument("--no-online", action="store_true",
@@ -44,7 +44,7 @@ def main():
         print("[提示] 在线增强已关闭, 仅使用本地词典翻译。")
 
     print("=" * 52)
-    print("  英语翻译 Agent (English Translator)")
+    print("  翻译 Agent (English Translator)")
     print(f"  在线增强: {'开启' if ONLINE_TRANSLATE_ENABLED else '关闭'}")
     print(f"  服务地址: http://{args.host}:{args.port}")
     print("=" * 52)

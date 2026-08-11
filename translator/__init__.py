@@ -1,1 +1,1 @@
-"""translator 包: 英语翻译 Agent 核心。"""
+"""translator 包: 翻译 Agent 核心。"""
