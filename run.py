@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-run.py — 英语翻译 Agent 启动入口
+run.py — 翻译 Agent 启动入口
 
 用法:
     python run.py            # 启动 Web 服务(默认 http://localhost:5000)
@@ -29,7 +29,7 @@ def create_app() -> Flask:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="英语翻译 Agent")
+    parser = argparse.ArgumentParser(description="翻译 Agent")
     parser.add_argument("--host", default=HOST, help="绑定地址")
     parser.add_argument("--port", type=int, default=PORT, help="端口")
     parser.add_argument("--no-online", action="store_true",
