@@ -246,12 +246,41 @@ def _clean_en_text(text: str) -> str:
 # ---------------------------------------------------------------
 # 在线翻译(增强)
 # ---------------------------------------------------------------
+# 在线引擎单次请求有长度上限(Google ~5000 字符, MyMemory ~500 字节),
+# 超长文本按句子分块翻译再拼接, 保证 10 万字符也能在线翻译。
+ONLINE_CHUNK_LIMIT = 4500
+
+
 def translate_online(text: str, source: str, target: str) -> str:
     """
-    在线翻译(转发到当前配置的提供商, 支持 MyMemory/DeepL/百度/腾讯/OpenAI)。
-    失败或异常时抛出异常, 由上层捕获并回退本地翻译。
+    在线翻译(转发到当前配置的提供商, 支持 Google/MyMemory/DeepL/百度/腾讯/OpenAI)。
+    超长文本自动分块; 失败或异常时抛出异常, 由上层捕获并回退本地翻译。
     """
-    return providers.translate_online(text, source, target)
+    if len(text) <= ONLINE_CHUNK_LIMIT:
+        return providers.translate_online(text, source, target)
+
+    # ---- 超长文本: 按句子分块, 逐块翻译后拼接 ----
+    chunks, cur = [], ""
+    for sent in text_utils.split_sentences(text):
+        # 单个句子超长: 循环硬切成多个块
+        while len(sent) > ONLINE_CHUNK_LIMIT:
+            if cur:
+                chunks.append(cur)
+                cur = ""
+            chunks.append(sent[:ONLINE_CHUNK_LIMIT])
+            sent = sent[ONLINE_CHUNK_LIMIT:]
+        # 剩余短句并入当前块
+        if len(cur) + len(sent) + 1 > ONLINE_CHUNK_LIMIT:
+            if cur:
+                chunks.append(cur)
+            cur = sent
+        else:
+            cur = (cur + " " + sent) if cur else sent
+    if cur:
+        chunks.append(cur)
+
+    results = [providers.translate_online(c, source, target) for c in chunks]
+    return " ".join(results)
 
 
 # ---------------------------------------------------------------

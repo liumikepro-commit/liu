@@ -99,7 +99,7 @@ class TestEdgeCases(unittest.TestCase):
         self.assertIsNotNone(r["error"])
 
     def test_long_input(self):
-        long_text = "hello " * 2000  # 超过 5000 字符
+        long_text = "hello " * 25000  # 125000 字符, 超过 100000 限制
         r = translate(long_text, use_online=False)
         self.assertIsNotNone(r["error"])  # 应提示过长
 

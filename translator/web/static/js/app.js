@@ -42,7 +42,7 @@
   var downloadPdf = document.getElementById("downloadPdf");
   var docErrorBox = document.getElementById("docErrorBox");
 
-  var MAX_LEN = 5000; // 与后端 config.MAX_INPUT_LEN 保持一致
+  var MAX_LEN = 100000; // 与后端 config.MAX_INPUT_LEN 保持一致
   var lastTranslation = "";
   var selectedFile = null;   // 当前选择的文档
   var currentTaskId = null;  // 当前文档翻译任务

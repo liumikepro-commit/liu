@@ -70,7 +70,7 @@ docker run -d -p 5000:5000 --name translator english-translator
 | `DEEPL_API_KEY` 等 | `""` | 各引擎 Key（也可在 Web 设置面板配置） |
 | `TM_ENABLED` | `True` | 翻译记忆开关 |
 | `GLOSSARY_ENABLED` | `True` | 术语表开关 |
-| `MAX_INPUT_LEN` | 5000 | 单次最大输入字符数 |
+| `MAX_INPUT_LEN` | 100000 | 单次最大输入字符数（超长在线翻译自动分块） |
 | `HOST` / `PORT` | `0.0.0.0` / `5000` | 服务监听地址/端口 |
 
 ## 二、纯前端演示版发布

@@ -20,7 +20,7 @@
   var onlineBadge = document.getElementById("onlineBadge");
   var useOnline = document.getElementById("useOnline");
 
-  var MAX_LEN = 5000;
+  var MAX_LEN = 100000;
   var lastTranslation = "";
 
   inputText.addEventListener("input", function () {
