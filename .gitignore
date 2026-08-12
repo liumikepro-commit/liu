@@ -12,6 +12,9 @@ venv/
 .venv/
 env/
 
+# 便携运行环境(内置 Python + 依赖, 本地打包用, 体积大不提交)
+runtime/
+
 # IDE
 .vscode/
 .idea/
