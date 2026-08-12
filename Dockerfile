@@ -16,7 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 安装依赖
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    # opencv 替换为 headless 版: 服务器无 GUI, 避免缺 libxcb/libGL
+    && pip uninstall -y opencv-python opencv-python-headless \
+    && pip install --no-cache-dir opencv-python-headless
 
 # 复制项目代码
 COPY . .
