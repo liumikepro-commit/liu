@@ -184,6 +184,18 @@ def api_document_download(task_id):
     if task["status"] != "done":
         return jsonify({"error": f"任务尚未完成（当前状态: {task['status']}）。"}), 400
 
+    # 图片任务且选择"原位替换": 返回译文图片(与原图同格式)
+    if task.get("output") == "image" and task.get("kind") == "image":
+        img_path = task["files"].get("image")
+        if not img_path or not os.path.exists(img_path):
+            return jsonify({"error": "译文图片不存在，请重新翻译。"}), 404
+        base = os.path.splitext(task["source_name"])[0] or "translated"
+        download_name = f"{base}_translated{os.path.splitext(img_path)[1]}"
+        return send_file(
+            img_path, as_attachment=True,
+            download_name=download_name,
+        )
+
     # 仅支持导出 PDF
     path = task["files"].get("pdf")
     if not path or not os.path.exists(path):
@@ -232,11 +244,14 @@ def api_image_translate():
     target = request.form.get("target", "auto")
     use_online = request.form.get("use_online", "true").lower() == "true"
     bilingual = request.form.get("bilingual", "false").lower() == "true"
+    output = request.form.get("output", "pdf").lower()
 
     if source not in SUPPORTED_LANGUAGES:
         return jsonify({"error": f"不支持的 source: {source}"}), 400
     if target not in SUPPORTED_LANGUAGES:
         return jsonify({"error": f"不支持的 target: {target}"}), 400
+    if output not in ("pdf", "image"):
+        return jsonify({"error": "output 仅支持 pdf 或 image。"}), 400
 
     # 保存上传文件到临时区
     os.makedirs(doc_tasks.UPLOAD_DIR, exist_ok=True)
@@ -255,9 +270,11 @@ def api_image_translate():
         use_online=use_online,
         bilingual=bilingual,
         kind="image",
+        output=output,
     )
     return jsonify({"task_id": task_id, "message": "任务已创建",
-                    "bilingual": bilingual, "kind": "image"})
+                    "bilingual": bilingual, "kind": "image",
+                    "output": output})
 
 
 

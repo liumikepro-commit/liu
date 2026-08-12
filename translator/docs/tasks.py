@@ -16,7 +16,9 @@ import uuid
 from .parser import parse_document
 from .pipeline import translate_document
 from .renderer import export_document, render_pdf_bilingual
+from .block import DocumentModel, TextBlock, KIND_PARAGRAPH
 from . import ocr as ocr_mod
+from . import image_edit
 
 # 输出目录: 项目根/uploads
 UPLOAD_DIR = os.path.join(
@@ -34,8 +36,8 @@ def _new_task_id() -> str:
 
 def create_task(filename: str, file_path: str, source: str,
                 target: str, use_online: bool, bilingual: bool = False,
-                kind: str = "document") -> str:
-    """创建任务并启动后台线程, 返回 task_id; kind: document | image"""
+                kind: str = "document", output: str = "pdf") -> str:
+    """创建任务并启动后台线程, 返回 task_id; kind: document | image; output: pdf | image"""
     task_id = _new_task_id()
     task = {
         "id": task_id,
@@ -45,7 +47,8 @@ def create_task(filename: str, file_path: str, source: str,
         "source_name": filename,
         "bilingual": bilingual,     # 是否导出双语对照
         "kind": kind,               # document | image
-        "files": {"docx": None, "pdf": None},
+        "output": output,           # pdf | image(仅图片任务有效, 原位替换)
+        "files": {"docx": None, "pdf": None, "image": None},
         "created_at": time.time(), "updated_at": time.time(),
     }
     with _TASKS_LOCK:
@@ -54,7 +57,7 @@ def create_task(filename: str, file_path: str, source: str,
     thread = threading.Thread(
         target=_run_task,
         args=(task_id, filename, file_path, source, target,
-              use_online, bilingual, kind),
+              use_online, bilingual, kind, output),
         daemon=True,
     )
     thread.start()
@@ -77,13 +80,19 @@ def _update(task_id: str, **kwargs):
 
 
 def _run_task(task_id, filename, file_path, source, target, use_online,
-              bilingual, kind):
-    """后台执行: 解析(文档/图片OCR) -> 翻译 -> 导出"""
+              bilingual, kind, output):
+    """后台执行: 解析(文档/图片OCR) -> 翻译 -> 导出(pdf/图片原位替换)"""
     try:
         # ---- 1. 解析 ----
+        ocr_lines = None
         if kind == "image":
             _update(task_id, status="running", message="正在识别图片文字(OCR)…")
-            model = ocr_mod.image_to_model(file_path)
+            ocr_lines = ocr_mod.ocr_image(file_path)
+            model = DocumentModel()
+            for ln in ocr_lines:
+                if ln["text"].strip():
+                    model.blocks.append(
+                        TextBlock(ln["text"], kind=KIND_PARAGRAPH))
         else:
             _update(task_id, status="running", message="正在解析文档…")
             model = parse_document(filename, file_path)
@@ -107,18 +116,29 @@ def _run_task(task_id, filename, file_path, source, target, use_online,
         translate_document(model, source=source, target=target,
                            use_online=use_online, progress_cb=on_progress)
 
-        # ---- 3. 导出 PDF (仅支持 PDF 下载) ----
+        # ---- 3. 导出 ----
         os.makedirs(UPLOAD_DIR, exist_ok=True)
         base = os.path.join(UPLOAD_DIR, task_id)
         results = {}
 
-        _update(task_id, message="正在生成 PDF 文件…")
-        out_path = f"{base}.pdf"
-        if bilingual:
-            render_pdf_bilingual(src_model, model, out_path)
+        # 图片任务 + 原位替换: 在原图文字位置覆盖译文, 输出同格式图片
+        if kind == "image" and output == "image":
+            _update(task_id, message="正在生成译文图片…")
+            ext = os.path.splitext(filename or "")[1].lower() or ".png"
+            out_path = f"{base}{ext}"
+            translated_lines = [b.text or "" for b in model.blocks]
+            image_edit.overlay_translation(
+                file_path, ocr_lines or [], translated_lines, out_path)
+            results["image"] = out_path
         else:
-            export_document(model, "pdf", out_path)
-        results["pdf"] = out_path
+            # 默认: 导出 PDF (仅支持 PDF 下载)
+            _update(task_id, message="正在生成 PDF 文件…")
+            out_path = f"{base}.pdf"
+            if bilingual:
+                render_pdf_bilingual(src_model, model, out_path)
+            else:
+                export_document(model, "pdf", out_path)
+            results["pdf"] = out_path
 
         _update(task_id, status="done", progress=100,
                 message="翻译完成", files=results)

@@ -383,6 +383,7 @@
   var imgBilingual = document.getElementById("imgBilingual");
   var imgSourceLang = document.getElementById("imgSourceLang");
   var imgTargetLang = document.getElementById("imgTargetLang");
+  var imgOutput = document.getElementById("imgOutput");
 
   var selectedImage = null;
   var imageTaskId = null;
@@ -444,6 +445,7 @@
     fd.append("target", imgTargetLang.value);
     fd.append("use_online", imgUseOnline.checked ? "true" : "false");
     fd.append("bilingual", imgBilingual.checked ? "true" : "false");
+    fd.append("output", imgOutput.value);
 
     imgTranslateBtn.disabled = true;
     hideImgError();
@@ -501,6 +503,8 @@
       imgProgressArea.classList.add("hidden");
       imgResultArea.classList.remove("hidden");
       imgDownloadPdf.href = "/api/documents/download/" + imageTaskId;
+      imgDownloadPdf.textContent =
+        (imgOutput.value === "image") ? "下载图片" : "下载 PDF";
       imgTranslateBtn.disabled = false;
     }, 400);
   }
