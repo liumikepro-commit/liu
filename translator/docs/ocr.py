@@ -36,9 +36,11 @@ def _get_engine():
             if _engine is None:
                 try:
                     from rapidocr_onnxruntime import RapidOCR
-                except ImportError:
+                except Exception as exc:
                     raise RuntimeError(
-                        "OCR 组件未安装，请先安装依赖: pip install rapidocr_onnxruntime")
+                        f"OCR 组件加载失败: {exc}。"
+                        f"若提示缺少共享库，请在系统安装 onnxruntime 运行依赖"
+                        f"(Linux: libgomp1)。")
                 _engine = RapidOCR()
     return _engine
 

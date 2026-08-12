@@ -8,9 +8,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 安装系统中文字体(供 PDF 导出渲染中文)与基本工具
+# 安装系统中文字体(供 PDF 导出渲染中文)与 onnxruntime 运行库
 RUN apt-get update && apt-get install -y --no-install-recommends \
         fonts-noto-cjk \
+        libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装依赖
