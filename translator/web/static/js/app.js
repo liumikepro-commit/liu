@@ -64,6 +64,20 @@
     return s + " → " + t;
   }
 
+  // 安全解析 JSON 响应: 服务休眠唤醒/网络中断时响应可能为空或非 JSON,
+  // 直接 resp.json() 会抛 "Unexpected end of JSON input", 这里统一兜底为友好错误
+  function safeJson(resp) {
+    return resp.text().then(function (t) {
+      var data = {};
+      try {
+        data = t ? JSON.parse(t) : {};
+      } catch (e) {
+        data = { error: "服务响应异常，请稍后重试。" };
+      }
+      return { ok: resp.ok, data: data };
+    });
+  }
+
   // ============================================================
   // 文本翻译逻辑
   // ============================================================
@@ -141,12 +155,13 @@
         use_online: useOnline.checked
       })
     })
-      .then(function (resp) { return resp.json(); })
-      .then(function (data) {
-        renderResult(data);
+      .then(safeJson)
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.data.error || "翻译请求失败，请重试。");
+        renderResult(res.data);
       })
-      .catch(function () {
-        showError("网络请求失败，请检查服务是否运行。");
+      .catch(function (err) {
+        showError(err && err.message ? err.message : "网络请求失败，请检查服务是否运行。");
       })
       .finally(function () {
         translateBtn.disabled = false;
@@ -298,7 +313,7 @@
     setProgress(0, "正在上传文件…");
 
     fetch("/api/documents/translate", { method: "POST", body: fd })
-      .then(function (resp) { return resp.json().then(function (d) { return { ok: resp.ok, data: d }; }); })
+      .then(safeJson)
       .then(function (res) {
         if (!res.ok) throw new Error(res.data.error || "上传失败");
         currentTaskId = res.data.task_id;
@@ -315,8 +330,9 @@
   function pollStatus() {
     if (!currentTaskId) return;
     fetch("/api/documents/status/" + currentTaskId)
-      .then(function (resp) { return resp.json(); })
-      .then(function (task) {
+      .then(safeJson)
+      .then(function (res) {
+        var task = res.data;
         if (task.error) throw new Error(task.error);
         if (task.status === "running" || task.status === "pending") {
           setProgress(task.progress || 0, task.message || "处理中…");
@@ -331,9 +347,17 @@
         }
       })
       .catch(function (err) {
-        progressArea.classList.add("hidden");
-        showDocError(err.message || "查询任务状态失败。");
-        docTranslateBtn.disabled = false;
+        // 查询状态偶发失败(服务重启/网络波动): 自动重试, 不打断翻译进度
+        if (window.__docPollRetry === undefined) window.__docPollRetry = 0;
+        window.__docPollRetry += 1;
+        if (window.__docPollRetry <= 10) {
+          setTimeout(pollStatus, 3000);
+        } else {
+          window.__docPollRetry = 0;
+          progressArea.classList.add("hidden");
+          showDocError(err.message || "查询任务状态失败，请刷新页面查看。");
+          docTranslateBtn.disabled = false;
+        }
       });
   }
 
@@ -454,7 +478,7 @@
     setImgProgress(0, "正在上传图片…");
 
     fetch("/api/images/translate", { method: "POST", body: fd })
-      .then(function (resp) { return resp.json().then(function (d) { return { ok: resp.ok, data: d }; }); })
+      .then(safeJson)
       .then(function (res) {
         if (!res.ok) throw new Error(res.data.error || "上传失败");
         imageTaskId = res.data.task_id;
@@ -471,8 +495,9 @@
   function pollImageStatus() {
     if (!imageTaskId) return;
     fetch("/api/documents/status/" + imageTaskId)
-      .then(function (resp) { return resp.json(); })
-      .then(function (task) {
+      .then(safeJson)
+      .then(function (res) {
+        var task = res.data;
         if (task.error) throw new Error(task.error);
         if (task.status === "running" || task.status === "pending") {
           setImgProgress(task.progress || 0, task.message || "处理中…");
@@ -487,9 +512,17 @@
         }
       })
       .catch(function (err) {
-        imgProgressArea.classList.add("hidden");
-        showImgError(err.message || "查询任务状态失败。");
-        imgTranslateBtn.disabled = false;
+        // 查询状态偶发失败(服务重启/网络波动): 自动重试, 不打断翻译进度
+        if (window.__imgPollRetry === undefined) window.__imgPollRetry = 0;
+        window.__imgPollRetry += 1;
+        if (window.__imgPollRetry <= 10) {
+          setTimeout(pollImageStatus, 3000);
+        } else {
+          window.__imgPollRetry = 0;
+          imgProgressArea.classList.add("hidden");
+          showImgError(err.message || "查询任务状态失败，请刷新页面查看。");
+          imgTranslateBtn.disabled = false;
+        }
       });
   }
 
@@ -567,7 +600,8 @@
     settingsMsg.textContent = "";
     settingsMsg.className = "settings-msg";
     settingsModal.classList.remove("hidden");
-    fetch("/api/settings").then(function (r) { return r.json(); }).then(function (data) {
+    fetch("/api/settings").then(safeJson).then(function (res) {
+      var data = res.data;
       settingsData = data;
       providerSelect.value = data.translator_provider || "google";
       renderKeyFields();
@@ -625,8 +659,9 @@
       item.querySelector(".gt-del").addEventListener("click", function () {
         fetch("/api/glossary?lang=" + lang + "&term=" + encodeURIComponent(term),
               { method: "DELETE" })
-          .then(function (r) { return r.json(); })
-          .then(function (d) {
+          .then(safeJson)
+          .then(function (res) {
+            var d = res.data;
             settingsData.glossary = d.glossary;
             renderGlossary();
           });
@@ -644,7 +679,8 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lang: glossaryLang.value, term: term, target: target })
-    }).then(function (r) { return r.json(); }).then(function (d) {
+    }).then(safeJson).then(function (res) {
+      var d = res.data;
       if (d.error) { flashMsg(d.error, true); return; }
       glossaryTerm.value = "";
       glossaryTarget.value = "";
@@ -660,8 +696,9 @@
   }
   tmClearBtn.addEventListener("click", function () {
     fetch("/api/tm/clear", { method: "POST" })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
+      .then(safeJson)
+      .then(function (res) {
+        var d = res.data;
         renderTmStats(d.stats);
         flashMsg("翻译记忆已清空", false);
       });
@@ -678,7 +715,8 @@
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
-    }).then(function (r) { return r.json(); }).then(function (d) {
+    }).then(safeJson).then(function (res) {
+      var d = res.data;
       if (d.error) { flashMsg(d.error, true); return; }
       flashMsg("设置已保存 ✓", false);
     });
