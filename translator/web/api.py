@@ -325,6 +325,7 @@ def api_get_settings():
         "baidu_configured": mask("baidu_app_id") and mask("baidu_secret_key"),
         "tencent_configured": mask("tencent_secret_id") and mask("tencent_secret_key"),
         "openai_configured": mask("openai_api_key"),
+        "libretranslate_configured": True,  # 新增，LibreTranslate 始终可用
         "tm_enabled": tm_mod.is_enabled(),
         "glossary_enabled": glossary_mod.is_enabled(),
         "tm_stats": tm_mod.stats(),
@@ -344,6 +345,7 @@ def api_put_settings():
         "translator_provider", "deepl_api_key", "baidu_app_id",
         "baidu_secret_key", "tencent_secret_id", "tencent_secret_key",
         "openai_api_key", "openai_base_url", "openai_model",
+        "libretranslate_url", "libretranslate_api_key",  # 新增
         "tm_enabled", "glossary_enabled",
     }
     settings = _load_settings_file()
@@ -352,7 +354,7 @@ def api_put_settings():
             settings[key] = value
 
     if settings.get("translator_provider") not in (
-            "google", "mymemory", "deepl", "baidu", "tencent", "openai"):
+            "google", "mymemory", "libretranslate","deepl", "baidu", "tencent", "openai"):
         return jsonify({"error": "不支持的翻译引擎。"}), 400
 
     _save_settings_file(settings)
