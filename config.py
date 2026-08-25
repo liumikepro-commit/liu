@@ -31,7 +31,7 @@ TENCENT_SECRET_KEY = ""
 OPENAI_API_KEY = ""         # OpenAI 兼容接口(可填 DeepSeek/通义/自建网关)
 OPENAI_BASE_URL = "https://api.openai.com/v1"
 OPENAI_MODEL = "gpt-4o-mini"
-LIBRETRANSLATE_URL = "https://libretranslate.com"  # LibreTranslate 实例地址，可自建
+LIBRETRANSLATE_URL = "https://libretranslate-1-32qv.onrender.com"  # LibreTranslate 实例地址，可自建
 LIBRETRANSLATE_API_KEY = ""  # 公共实例可能需要免费 API Key，自建则不需要
 
 # ---------- 翻译记忆 (Translation Memory) ----------
