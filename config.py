@@ -21,7 +21,7 @@ ONLINE_TIMEOUT = 15          # 在线请求超时(秒), 超时/失败自动回�
 # 可选: google | mymemory | deepl | baidu | tencent | openai
 # google/mymemory 为免费引擎(互为备用); 其余需要配置 Key。
 # 也可在 Web 界面「设置」中动态配置(保存在 translator/data/settings.json)。
-TRANSLATOR_PROVIDER = "mymemory"
+TRANSLATOR_PROVIDER = "libretranslate"
 
 DEEPL_API_KEY = ""          # DeepL: https://www.deepl.com/pro-api (支持免费版)
 BAIDU_APP_ID = ""           # 百度翻译开放平台: https://fanyi-api.baidu.com
@@ -31,6 +31,8 @@ TENCENT_SECRET_KEY = ""
 OPENAI_API_KEY = ""         # OpenAI 兼容接口(可填 DeepSeek/通义/自建网关)
 OPENAI_BASE_URL = "https://api.openai.com/v1"
 OPENAI_MODEL = "gpt-4o-mini"
+LIBRETRANSLATE_URL = "https://libretranslate.com"  # LibreTranslate 实例地址，可自建
+LIBRETRANSLATE_API_KEY = ""  # 公共实例可能需要免费 API Key，自建则不需要
 
 # ---------- 翻译记忆 (Translation Memory) ----------
 TM_ENABLED = True           # 重复句子自动复用历史译文(SQLite 存储)
