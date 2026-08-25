@@ -33,6 +33,8 @@ from config import (
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
     OPENAI_MODEL,
+    LIBRETRANSLATE_URL,        # 新增
+    LIBRETRANSLATE_API_KEY,    # 新增
 )
 from .languages import (
     MYMEMORY_LANG_MAP,
@@ -315,13 +317,37 @@ class OpenAIProvider(BaseProvider):
         except (KeyError, IndexError):
             raise RuntimeError("OpenAI 返回格式异常")
 
+class LibreTranslateProvider(BaseProvider):
+    """LibreTranslate 开源翻译 API（免费，可自建）"""
+    name = "libretranslate"
+    display_name = "LibreTranslate (免费开源)"
 
+    def translate(self, text, source, target):
+        base_url = _get("libretranslate_url", LIBRETRANSLATE_URL).rstrip("/")
+        api_key = _get("libretranslate_api_key", LIBRETRANSLATE_API_KEY)
+        body = json.dumps({
+            "q": text,
+            "source": source,
+            "target": target,
+            "format": "text",
+        }).encode()
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        req = urllib.request.Request(
+            f"{base_url}/translate", data=body, headers=headers)
+        with urllib.request.urlopen(req, timeout=ONLINE_TIMEOUT) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        if "translatedText" not in payload:
+            raise RuntimeError(f"LibreTranslate 返回格式异常: {payload}")
+        return payload["translatedText"]
 # ---------------------------------------------------------------
 # 提供商工厂
 # ---------------------------------------------------------------
 _PROVIDERS = {
     "google": GoogleTranslateProvider,
     "mymemory": MyMemoryProvider,
+    "libretranslate": LibreTranslateProvider,  # 新增
     "deepl": DeepLProvider,
     "baidu": BaiduProvider,
     "tencent": TencentProvider,
@@ -348,7 +374,7 @@ def get_provider(name: str = None) -> BaseProvider:
 
 def provider_ready(name: str) -> bool:
     """判断指定提供商是否已配置可用 Key(Google/MyMemory 永远可用)"""
-    if name in ("google", "mymemory"):
+    if name in ("google", "mymemory", "libretranslate"):
         return True
     checks = {
         "deepl": lambda: bool(_get("deepl_api_key", DEEPL_API_KEY)),
