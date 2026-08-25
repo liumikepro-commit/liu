@@ -573,6 +573,10 @@
 
   // 各引擎的 Key 字段配置
   var PROVIDER_FIELDS = {
+    libretranslate: [
+      { key: "libretranslate_url", label: "实例地址", placeholder: "https://libretranslate.com （可自建）" },
+      { key: "libretranslate_api_key", label: "API Key（可选）", placeholder: "公共实例可能需要，自建则不需要" }
+    ],
     deepl: [{ key: "deepl_api_key", label: "DeepL API Key", placeholder: "如 xxxx-xxxx-xxxx-xxxx" }],
     baidu: [
       { key: "baidu_app_id", label: "APP ID", placeholder: "百度翻译开放平台 AppID" },
