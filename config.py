@@ -21,7 +21,7 @@ ONLINE_TIMEOUT = 15          # 在线请求超时(秒), 超时/失败自动回�
 # 可选: google | mymemory | deepl | baidu | tencent | openai
 # google/mymemory 为免费引擎(互为备用); 其余需要配置 Key。
 # 也可在 Web 界面「设置」中动态配置(保存在 translator/data/settings.json)。
-TRANSLATOR_PROVIDER = "google"
+TRANSLATOR_PROVIDER = "mymemory"
 
 DEEPL_API_KEY = ""          # DeepL: https://www.deepl.com/pro-api (支持免费版)
 BAIDU_APP_ID = ""           # 百度翻译开放平台: https://fanyi-api.baidu.com
