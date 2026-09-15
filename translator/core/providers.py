@@ -387,11 +387,22 @@ def provider_ready(name: str) -> bool:
     return checks.get(name, lambda: False)()
 
 
+#def translate_online(text: str, source: str, target: str) -> str:
+#    """在线翻译统一入口(兼容旧调用): 使用当前配置的提供商"""
+    # provider = get_provider()
+    # return provider.translate(text, source, target)
 def translate_online(text: str, source: str, target: str) -> str:
     """在线翻译统一入口(兼容旧调用): 使用当前配置的提供商"""
+    from . import usage_tracker
     provider = get_provider()
-    return provider.translate(text, source, target)
-
+    in_c = len(text)
+    try:
+        result = provider.translate(text, source, target)
+        usage_tracker.record(provider.name, source, target, in_c, len(result))
+        return result
+    except Exception as e:
+        usage_tracker.record(provider.name, source, target, in_c, 0, ok=False, err=str(e))
+        raise
 
 def list_providers() -> list:
     """返回提供商列表(供设置面板展示)"""
