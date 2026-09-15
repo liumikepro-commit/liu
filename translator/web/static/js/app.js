@@ -28,8 +28,8 @@
   var panelText = document.getElementById("panelText");
   var panelDoc = document.getElementById("panelDoc");
   var panelImage = document.getElementById("panelImage");
-  var tabUsage = document.getElementById("tabUsage");
-  var panelUsage = document.getElementById("panelUsage");
+  // var tabUsage = document.getElementById("tabUsage");
+  // var panelUsage = document.getElementById("panelUsage");
   var dropZone = document.getElementById("dropZone");
   var fileInput = document.getElementById("fileInput");
   var fileInfo = document.getElementById("fileInfo");
@@ -240,21 +240,21 @@
     var isText = which === "text";
     var isDoc = which === "doc";
     var isImage = which === "image";
-    var isUsage = which === "usage";
+    // var isUsage = which === "usage";
     tabText.classList.toggle("active", isText);
     tabDoc.classList.toggle("active", isDoc);
     tabImage.classList.toggle("active", isImage);
-    tabUsage.classList.toggle("active", isUsage);
+    // tabUsage.classList.toggle("active", isUsage);
     panelText.classList.toggle("hidden", !isText);
     panelDoc.classList.toggle("hidden", !isDoc);
     panelImage.classList.toggle("hidden", !isImage);
-    panelUsage.classList.toggle("hidden", !isUsage);
-    if (isUsage) loadUsage();
+    // panelUsage.classList.toggle("hidden", !isUsage);
+    // if (isUsage) loadUsage();
   }
   tabText.addEventListener("click", function () { switchTab("text"); });
   tabDoc.addEventListener("click", function () { switchTab("doc"); });
   tabImage.addEventListener("click", function () { switchTab("image"); });
-  tabUsage.addEventListener("click", function () { switchTab("usage"); });
+  // tabUsage.addEventListener("click", function () { switchTab("usage"); });
 
   // ---- 文件选择: 点击 & 拖拽 ----
   dropZone.addEventListener("click", function () { fileInput.click(); });
@@ -613,6 +613,7 @@
     settingsMsg.textContent = "";
     settingsMsg.className = "settings-msg";
     settingsModal.classList.remove("hidden");
+    loadUsage();
     fetch("/api/settings").then(safeJson).then(function (res) {
       var data = res.data;
       settingsData = data;
@@ -748,20 +749,30 @@
   }
 
   // ---- 用量统计 ----
+//   function loadUsage() {
+//     fetch("/api/usage").then(safeJson).then(function (res) {
+//       if (!res.ok) return;
+//       var d = res.data;
+//       document.getElementById("uTodayCalls").textContent = (d.today.count||0).toLocaleString();
+//       document.getElementById("uTodayTokens").textContent = (d.today.t||0).toLocaleString();
+//       document.getElementById("uTotalCalls").textContent = (d.total.count||0).toLocaleString();
+//       document.getElementById("uTotalTokens").textContent = (d.total.t||0).toLocaleString();
+//       document.getElementById("uDaily").innerHTML = d.daily.map(function(r){
+//         return "<tr><td>"+r.date+"</td><td>"+r.count+"</td><td>"+(r.tokens||0).toLocaleString()+"</td></tr>";
+//       }).join("");
+//       document.getElementById("uEngines").innerHTML = d.engines.map(function(r){
+//         return "<tr><td>"+r.engine+"</td><td>"+r.count+"</td><td>"+(r.tokens||0).toLocaleString()+"</td></tr>";
+//       }).join("");
+//     });
+//   }
+// })();
+  // ---- 用量统计(设置弹窗内显示) ----
   function loadUsage() {
     fetch("/api/usage").then(safeJson).then(function (res) {
       if (!res.ok) return;
       var d = res.data;
-      document.getElementById("uTodayCalls").textContent = (d.today.count||0).toLocaleString();
-      document.getElementById("uTodayTokens").textContent = (d.today.t||0).toLocaleString();
-      document.getElementById("uTotalCalls").textContent = (d.total.count||0).toLocaleString();
-      document.getElementById("uTotalTokens").textContent = (d.total.t||0).toLocaleString();
-      document.getElementById("uDaily").innerHTML = d.daily.map(function(r){
-        return "<tr><td>"+r.date+"</td><td>"+r.count+"</td><td>"+(r.tokens||0).toLocaleString()+"</td></tr>";
-      }).join("");
-      document.getElementById("uEngines").innerHTML = d.engines.map(function(r){
-        return "<tr><td>"+r.engine+"</td><td>"+r.count+"</td><td>"+(r.tokens||0).toLocaleString()+"</td></tr>";
-      }).join("");
+      document.getElementById("usageCalls").textContent = (d.calls||0).toLocaleString();
+      document.getElementById("usageTokens").textContent = (d.tokens||0).toLocaleString();
     });
   }
 })();
