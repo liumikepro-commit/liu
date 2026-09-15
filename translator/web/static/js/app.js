@@ -415,8 +415,8 @@
   var imgSourceLang = document.getElementById("imgSourceLang");
   var imgTargetLang = document.getElementById("imgTargetLang");
   var imgOutput = document.getElementById("imgOutput");
-  var tabUsage = document.getElementById("tabUsage");
-  var panelUsage = document.getElementById("panelUsage");
+  // var tabUsage = document.getElementById("tabUsage");
+  // var panelUsage = document.getElementById("panelUsage");
 
   var selectedImage = null;
   var imageTaskId = null;
