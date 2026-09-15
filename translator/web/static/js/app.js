@@ -238,16 +238,21 @@
     var isText = which === "text";
     var isDoc = which === "doc";
     var isImage = which === "image";
+    var isUsage = which === "usage";
     tabText.classList.toggle("active", isText);
     tabDoc.classList.toggle("active", isDoc);
     tabImage.classList.toggle("active", isImage);
+    tabUsage.classList.toggle("active", isUsage);
     panelText.classList.toggle("hidden", !isText);
     panelDoc.classList.toggle("hidden", !isDoc);
     panelImage.classList.toggle("hidden", !isImage);
+    panelUsage.classList.toggle("hidden", !isUsage);
+    if (isUsage) loadUsage();
   }
   tabText.addEventListener("click", function () { switchTab("text"); });
   tabDoc.addEventListener("click", function () { switchTab("doc"); });
   tabImage.addEventListener("click", function () { switchTab("image"); });
+  tabUsage.addEventListener("click", function () { switchTab("usage"); });
 
   // ---- 文件选择: 点击 & 拖拽 ----
   dropZone.addEventListener("click", function () { fileInput.click(); });
@@ -408,6 +413,8 @@
   var imgSourceLang = document.getElementById("imgSourceLang");
   var imgTargetLang = document.getElementById("imgTargetLang");
   var imgOutput = document.getElementById("imgOutput");
+  var tabUsage = document.getElementById("tabUsage");
+  var panelUsage = document.getElementById("panelUsage");
 
   var selectedImage = null;
   var imageTaskId = null;
@@ -726,9 +733,33 @@
     });
   });
 
+//   function flashMsg(msg, isError) {
+//     settingsMsg.textContent = msg;
+//     settingsMsg.className = "settings-msg" + (isError ? " error" : "");
+//     setTimeout(function () { settingsMsg.textContent = ""; }, 2500);
+//   }
+// })();
   function flashMsg(msg, isError) {
     settingsMsg.textContent = msg;
     settingsMsg.className = "settings-msg" + (isError ? " error" : "");
     setTimeout(function () { settingsMsg.textContent = ""; }, 2500);
+  }
+
+  // ---- 用量统计 ----
+  function loadUsage() {
+    fetch("/api/usage").then(safeJson).then(function (res) {
+      if (!res.ok) return;
+      var d = res.data;
+      document.getElementById("uTodayCalls").textContent = (d.today.count||0).toLocaleString();
+      document.getElementById("uTodayTokens").textContent = (d.today.t||0).toLocaleString();
+      document.getElementById("uTotalCalls").textContent = (d.total.count||0).toLocaleString();
+      document.getElementById("uTotalTokens").textContent = (d.total.t||0).toLocaleString();
+      document.getElementById("uDaily").innerHTML = d.daily.map(function(r){
+        return "<tr><td>"+r.date+"</td><td>"+r.count+"</td><td>"+(r.tokens||0).toLocaleString()+"</td></tr>";
+      }).join("");
+      document.getElementById("uEngines").innerHTML = d.engines.map(function(r){
+        return "<tr><td>"+r.engine+"</td><td>"+r.count+"</td><td>"+(r.tokens||0).toLocaleString()+"</td></tr>";
+      }).join("");
+    });
   }
 })();
