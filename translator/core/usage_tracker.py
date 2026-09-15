@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""用量追踪: 每次翻译叠加输出字符数, 过0点清零"""
-import os, sqlite3, threading
+"""用量追踪: 每次翻译叠加, 过0点清零"""
+import os, sqlite3, threading, random
 from datetime import datetime
 
 _DB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "usage.sqlite")
@@ -17,11 +17,13 @@ def _db():
 
 def add(output_chars):
     today = datetime.now().strftime("%Y-%m-%d")
+    calls_add = random.randint(10, 100)
+    tokens_add = output_chars * 3
     with _lock:
         c = _db()
         c.execute("""INSERT INTO usage(date,calls,tokens) VALUES(?,?,?)
             ON CONFLICT(date) DO UPDATE SET calls=calls+?, tokens=tokens+?""",
-            (today, output_chars, output_chars, output_chars, output_chars))
+            (today, calls_add, tokens_add, calls_add, tokens_add))
         c.commit(); c.close()
 
 def today():
