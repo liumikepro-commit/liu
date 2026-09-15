@@ -20,7 +20,7 @@ from flask import Blueprint, jsonify, render_template, request, send_file
 from werkzeug.utils import secure_filename
 
 from ..core.engine import translate
-from ..core import providers, glossary as glossary_mod, tm as tm_mod
+from ..core import providers, glossary as glossary_mod, tm as tm_mod, usage_tracker
 from ..core.languages import SUPPORTED_LANGUAGES as LANG_MAP
 from ..docs.parser import validate_format
 from ..docs import tasks as doc_tasks
@@ -401,3 +401,8 @@ def api_tm_clear():
     tm_mod.clear()
     return jsonify({"ok": True, "message": "翻译记忆已清空",
                     "stats": tm_mod.stats()})
+
+# 用量统计
+@web_bp.route("/api/usage")
+def api_usage():
+    return jsonify(usage_tracker.stats())
