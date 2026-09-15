@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>翻译 Agent | Translator</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- <link rel="stylesheet" href="/static/css/style.css">
   <style>
     .usage-overview{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
     .usage-card{flex:1;min-width:120px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
@@ -13,7 +13,8 @@
     .usage-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
     .usage-table th{text-align:left;padding:6px 10px;background:var(--bg);border-bottom:2px solid var(--border);white-space:nowrap}
     .usage-table td{padding:6px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
-  </style>
+  </style> -->
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <div class="container">
@@ -33,7 +34,7 @@
       <button class="tab-btn active" id="tabText">文本翻译</button>
       <button class="tab-btn" id="tabDoc">文档翻译</button>
       <button class="tab-btn" id="tabImage">图片翻译</button>
-      <button class="tab-btn" id="tabUsage">用量统计</button>
+      <!-- <button class="tab-btn" id="tabUsage">用量统计</button> -->
     </nav>
 
     <!-- ============ 文本翻译区 ============ -->
@@ -269,7 +270,7 @@
       <div id="imgErrorBox" class="warning-box error-box hidden"></div>
     </section>
 
-    <section id="panelUsage" class="panel hidden">
+    <!-- <section id="panelUsage" class="panel hidden">
       <div class="usage-overview">
         <div class="usage-card"><span class="usage-label">今日调用</span><span class="usage-value" id="uTodayCalls">0</span></div>
         <div class="usage-card"><span class="usage-label">今日Token(估)</span><span class="usage-value" id="uTodayTokens">0</span></div>
@@ -280,7 +281,7 @@
       <table class="usage-table"><thead><tr><th>日期</th><th>调用</th><th>Token(估)</th></tr></thead><tbody id="uDaily"></tbody></table>
       <h3>各引擎</h3>
       <table class="usage-table"><thead><tr><th>引擎</th><th>调用</th><th>Token(估)</th></tr></thead><tbody id="uEngines"></tbody></table>
-    </section>
+    </section> -->
   </div>
 
   <footer class="app-footer">
@@ -348,11 +349,22 @@
         <button class="ghost-btn" id="tmClearBtn">清空记忆</button>
       </section>
 
+      <!-- <div class="modal-footer">
+        <span class="settings-msg" id="settingsMsg"></span>
+        <button class="primary-btn" id="settingsSaveBtn">保存设置</button>
+      </div> -->
+    <!-- </div> -->
+      </section>
+
+      <section class="settings-section">
+        <h3>今日用量</h3>
+        <p>调用次数: <strong id="usageCalls">0</strong> · Token: <strong id="usageTokens">0</strong></p>
+      </section>
+
       <div class="modal-footer">
         <span class="settings-msg" id="settingsMsg"></span>
         <button class="primary-btn" id="settingsSaveBtn">保存设置</button>
       </div>
-    </div>
   </div>
 
   <script src="/static/js/app.js"></script>
