@@ -387,14 +387,6 @@ def provider_ready(name: str) -> bool:
     return checks.get(name, lambda: False)()
 
 
-
-# def translate_online(text: str, source: str, target: str) -> str:
-#     """在线翻译统一入口(兼容旧调用): 使用当前配置的提供商"""
-#     from . import usage_tracker
-#     provider = get_provider()
-#     result = provider.translate(text, source, target)
-#     usage_tracker.add(len(result))
-#     return result
 def translate_online(text: str, source: str, target: str) -> str:
     """在线翻译统一入口(兼容旧调用): 使用当前配置的提供商"""
     from . import usage_tracker
