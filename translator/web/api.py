@@ -20,7 +20,7 @@ from flask import Blueprint, jsonify, render_template, request, send_file
 from werkzeug.utils import secure_filename
 
 from ..core.engine import translate
-from ..core import providers, glossary as glossary_mod, tm as tm_mod
+from ..core import providers, glossary as glossary_mod, tm as tm_mod, usage_tracker
 from ..core.languages import SUPPORTED_LANGUAGES as LANG_MAP
 from ..docs.parser import validate_format
 from ..docs import tasks as doc_tasks
@@ -401,3 +401,29 @@ def api_tm_clear():
     tm_mod.clear()
     return jsonify({"ok": True, "message": "翻译记忆已清空",
                     "stats": tm_mod.stats()})
+
+
+# ================================================================
+# 用量统计接口
+# ================================================================
+@web_bp.route("/api/usage")
+def api_usage():
+    """用量统计总览: 今日 + 累计 + 每日趋势 + 各引擎"""
+    return jsonify({
+        "today": usage_tracker.today_stats(),
+        "total": usage_tracker.total_stats(),
+        "daily": usage_tracker.daily_stats(30),
+        "engines": usage_tracker.engine_stats(),
+    })
+
+@web_bp.route("/api/usage/recent")
+def api_usage_recent():
+    """最近调用记录"""
+    limit = request.args.get("limit", 50, type=int)
+    return jsonify({"records": usage_tracker.recent_records(limit)})
+
+@web_bp.route("/api/usage/clear", methods=["POST"])
+def api_usage_clear():
+    """清空用量记录"""
+    usage_tracker.clear()
+    return jsonify({"ok": True, "message": "用量记录已清空"})
