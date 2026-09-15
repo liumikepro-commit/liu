@@ -28,6 +28,8 @@
   var panelText = document.getElementById("panelText");
   var panelDoc = document.getElementById("panelDoc");
   var panelImage = document.getElementById("panelImage");
+  var tabUsage = document.getElementById("tabUsage");
+  var panelUsage = document.getElementById("panelUsage");
   var dropZone = document.getElementById("dropZone");
   var fileInput = document.getElementById("fileInput");
   var fileInfo = document.getElementById("fileInfo");
