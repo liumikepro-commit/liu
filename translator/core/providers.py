@@ -389,8 +389,20 @@ def provider_ready(name: str) -> bool:
 
 def translate_online(text: str, source: str, target: str) -> str:
     """在线翻译统一入口(兼容旧调用): 使用当前配置的提供商"""
+    from . import usage_tracker
     provider = get_provider()
-    return provider.translate(text, source, target)
+    engine_name = provider.name
+    input_chars = len(text)
+    try:
+        result = provider.translate(text, source, target)
+        usage_tracker.record(
+            engine_name, source, target, input_chars, len(result))
+        return result
+    except Exception as e:
+        usage_tracker.record(
+            engine_name, source, target, input_chars, 0,
+            success=False, error=str(e))
+        raise
 
 
 def list_providers() -> list:
