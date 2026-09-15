@@ -45,27 +45,23 @@
   var downloadPdf = document.getElementById("downloadPdf");
   var docErrorBox = document.getElementById("docErrorBox");
 
-  var MAX_LEN = 100000; // 与后端 config.MAX_INPUT_LEN 保持一致
+  var MAX_LEN = 100000;
   var lastTranslation = "";
-  var selectedFile = null;   // 当前选择的文档
-  var currentTaskId = null;  // 当前文档翻译任务
+  var selectedFile = null;
+  var currentTaskId = null;
 
-  // 语言代码 -> 显示名称(与后端 SUPPORTED_LANGUAGES 一致)
   var LANG_NAMES = {
     "zh": "中文", "en": "英语", "ja": "日语", "ko": "韩语",
     "fr": "法语", "de": "德语", "es": "西班牙语", "ru": "俄语",
     "ar": "阿拉伯语", "pt": "葡萄牙语", "th": "泰语"
   };
 
-  // 获取语言方向文字
   function langDir(src, tgt) {
     var s = LANG_NAMES[src] || src;
     var t = LANG_NAMES[tgt] || tgt;
     return s + " → " + t;
   }
 
-  // 安全解析 JSON 响应: 服务休眠唤醒/网络中断时响应可能为空或非 JSON,
-  // 直接 resp.json() 会抛 "Unexpected end of JSON input", 这里统一兜底为友好错误
   function safeJson(resp) {
     return resp.text().then(function (t) {
       var data = {};
@@ -78,11 +74,6 @@
     });
   }
 
-  // ============================================================
-  // 文本翻译逻辑
-  // ============================================================
-
-  // ---- 输入字数统计 ----
   inputText.addEventListener("input", function () {
     var len = inputText.value.length;
     charCount.textContent = len + " / " + MAX_LEN;
@@ -92,19 +83,17 @@
     }
   });
 
-  // ---- 交换语言方向 ----
   swapBtn.addEventListener("click", function () {
     var src = sourceLang.value, tgt = targetLang.value;
     if (src !== "auto") sourceLang.value = tgt;
     if (tgt !== "auto") targetLang.value = src;
   });
 
-  // ---- 清空 ----
   clearBtn.addEventListener("click", function () {
     inputText.value = "";
     charCount.textContent = "0 / " + MAX_LEN;
     outputText.textContent = "";
-    outputText.innerHTML = '<span class="placeholder">译文将显示在这里</span>';
+    outputText.innerHTML = '译文将显示在这里';
     engineTag.textContent = "";
     warningBox.classList.add("hidden");
     metaBar.classList.add("hidden");
@@ -112,7 +101,6 @@
     inputText.focus();
   });
 
-  // ---- 复制 ----
   copyBtn.addEventListener("click", function () {
     if (!lastTranslation) return;
     navigator.clipboard.writeText(lastTranslation).then(function () {
@@ -121,39 +109,26 @@
     }).catch(function () { alert("复制失败，请手动选择复制。"); });
   });
 
-  // ---- 回车触发翻译 (Ctrl/Cmd + Enter) ----
   inputText.addEventListener("keydown", function (e) {
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") doTranslate();
   });
 
-  // ---- 在线状态指示 ----
   useOnline.addEventListener("change", function () {
     onlineBadge.classList.toggle("off", !useOnline.checked);
     onlineBadge.textContent = useOnline.checked ? "● 在线" : "○ 离线";
   });
 
-  // ---- 核心: 翻译请求 ----
   function doTranslate() {
     var text = inputText.value.trim();
-    if (!text) {
-      showError("请输入要翻译的内容。");
-      return;
-    }
-
+    if (!text) { showError("请输入要翻译的内容。"); return; }
     translateBtn.disabled = true;
-    translateBtn.innerHTML = '<span class="btn-icon">⏳</span> 翻译中…';
+    translateBtn.innerHTML = '⏳ 翻译中…';
     warningBox.classList.add("hidden");
     metaBar.classList.add("hidden");
-
     fetch("/api/translate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: text,
-        source: sourceLang.value,
-        target: targetLang.value,
-        use_online: useOnline.checked
-      })
+      body: JSON.stringify({ text: text, source: sourceLang.value, target: targetLang.value, use_online: useOnline.checked })
     })
       .then(safeJson)
       .then(function (res) {
@@ -165,39 +140,21 @@
       })
       .finally(function () {
         translateBtn.disabled = false;
-        translateBtn.innerHTML = '<span class="btn-icon">⚡</span> 翻 译';
+        translateBtn.innerHTML = '⚡ 翻 译';
       });
   }
 
-  // ---- 渲染结果 ----
   function renderResult(data) {
     if (data.error) { showError(data.error); return; }
-
     lastTranslation = data.translation || "";
     outputText.classList.remove("error");
     outputText.textContent = lastTranslation || "（空译文）";
     copyBtn.disabled = false;
-
-    // 引擎标识
     updateEngineTag(data.engine, data.relay);
-
-    // 元信息
     var dir = langDir(data.source, data.target);
-    var engineName = data.engine === "online" ? "在线" :
-                     data.engine === "tm" ? "翻译记忆" :
-                     data.engine === "relay" ? "中转翻译" : "本地";
-    metaBar.innerHTML =
-      '<span class="tag">方向: ' + dir + '</span>' +
-      '<span class="tag">引擎: ' + engineName + '</span>' +
-      (data.engine === "local"
-        ? '<span class="tag">词典覆盖率: ' + Math.round((data.coverage || 0) * 100) + '%</span>'
-        : "");
-
-    // 未收录提示
-    if (data.warning) {
-      warningBox.textContent = "⚠ " + data.warning;
-      warningBox.classList.remove("hidden");
-    }
+    var engineName = data.engine === "online" ? "在线" : data.engine === "tm" ? "翻译记忆" : data.engine === "relay" ? "中转翻译" : "本地";
+    metaBar.innerHTML = '方向: ' + dir + '' + '引擎: ' + engineName + '' + (data.engine === "local" ? '词典覆盖率: ' + Math.round((data.coverage || 0) * 100) + '%' : "");
+    if (data.warning) { warningBox.textContent = "⚠ " + data.warning; warningBox.classList.remove("hidden"); }
     metaBar.classList.remove("hidden");
   }
 
@@ -209,77 +166,45 @@
     warningBox.classList.add("hidden");
   }
 
-  // 引擎标识(tm/relay 适配)
   function updateEngineTag(engine, isRelay) {
-    if (engine === "online") {
-      engineTag.textContent = "在线翻译";
-      engineTag.className = "engine-tag online";
-    } else if (engine === "tm") {
-      engineTag.textContent = "翻译记忆";
-      engineTag.className = "engine-tag online";
-    } else if (engine === "relay" || isRelay) {
-      engineTag.textContent = "中转翻译";
-      engineTag.className = "engine-tag relay";
-    } else {
-      engineTag.textContent = "本地词典";
-      engineTag.className = "engine-tag local";
-    }
+    if (engine === "online") { engineTag.textContent = "在线翻译"; engineTag.className = "engine-tag online"; }
+    else if (engine === "tm") { engineTag.textContent = "翻译记忆"; engineTag.className = "engine-tag online"; }
+    else if (engine === "relay" || isRelay) { engineTag.textContent = "中转翻译"; engineTag.className = "engine-tag relay"; }
+    else { engineTag.textContent = "本地词典"; engineTag.className = "engine-tag local"; }
   }
 
-  // ---- 绑定翻译按钮 ----
   translateBtn.addEventListener("click", doTranslate);
 
-  // ============================================================
-  // 文档翻译逻辑
-  // ============================================================
-
-  // ---- Tab 切换 ----
   function switchTab(which) {
-    var isText = which === "text";
-    var isDoc = which === "doc";
-    var isImage = which === "image";
+    var isText = which === "text", isDoc = which === "doc", isImage = which === "image", isUsage = which === "usage";
     tabText.classList.toggle("active", isText);
     tabDoc.classList.toggle("active", isDoc);
     tabImage.classList.toggle("active", isImage);
+    tabUsage.classList.toggle("active", isUsage);
     panelText.classList.toggle("hidden", !isText);
     panelDoc.classList.toggle("hidden", !isDoc);
     panelImage.classList.toggle("hidden", !isImage);
+    panelUsage.classList.toggle("hidden", !isUsage);
+    if (isUsage) loadUsage();
   }
   tabText.addEventListener("click", function () { switchTab("text"); });
   tabDoc.addEventListener("click", function () { switchTab("doc"); });
   tabImage.addEventListener("click", function () { switchTab("image"); });
+  tabUsage.addEventListener("click", function () { switchTab("usage"); });
 
-  // ---- 文件选择: 点击 & 拖拽 ----
   dropZone.addEventListener("click", function () { fileInput.click(); });
-  dropZone.addEventListener("dragover", function (e) {
-    e.preventDefault();
-    dropZone.classList.add("drag-over");
-  });
-  dropZone.addEventListener("dragleave", function () {
-    dropZone.classList.remove("drag-over");
-  });
-  dropZone.addEventListener("drop", function (e) {
-    e.preventDefault();
-    dropZone.classList.remove("drag-over");
-    if (e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
-  });
-  fileInput.addEventListener("change", function () {
-    if (fileInput.files.length) selectFile(fileInput.files[0]);
-  });
+  dropZone.addEventListener("dragover", function (e) { e.preventDefault(); dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("dragleave", function () { dropZone.classList.remove("drag-over"); });
+  dropZone.addEventListener("drop", function (e) { e.preventDefault(); dropZone.classList.remove("drag-over"); if (e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener("change", function () { if (fileInput.files.length) selectFile(fileInput.files[0]); });
 
   function selectFile(file) {
-    // 前端格式预校验(与后端一致, 给出清晰提示)
     var ext = (file.name.split(".").pop() || "").toLowerCase();
     if (ext !== "pdf" && ext !== "docx") {
-      showDocError(ext === "doc"
-        ? "暂不支持旧版 Word (.doc)。请先用 Word 将文档另存为 .docx 后再上传。"
-        : "不支持的文件格式 ." + ext + "，当前支持 PDF (.pdf) 与 Word (.docx)。");
+      showDocError(ext === "doc" ? "暂不支持旧版 Word (.doc)。请先用 Word 将文档另存为 .docx 后再上传。" : "不支持的文件格式 ." + ext + "，当前支持 PDF (.pdf) 与 Word (.docx)。");
       return;
     }
-    if (file.size > 20 * 1024 * 1024) {
-      showDocError("文件过大（" + Math.round(file.size / 1048576) + "MB），单文件请控制在 20MB 以内。");
-      return;
-    }
+    if (file.size > 20 * 1024 * 1024) { showDocError("文件过大（" + Math.round(file.size / 1048576) + "MB），单文件请控制在 20MB 以内。"); return; }
     selectedFile = file;
     fileName.textContent = "📎 " + file.name + "（" + Math.round(file.size / 1024) + " KB）";
     fileInfo.classList.remove("hidden");
@@ -296,7 +221,6 @@
     docTranslateBtn.disabled = true;
   });
 
-  // ---- 上传并翻译 ----
   docTranslateBtn.addEventListener("click", function () {
     if (!selectedFile) return;
     var fd = new FormData();
@@ -305,13 +229,11 @@
     fd.append("target", docTargetLang.value);
     fd.append("use_online", docUseOnline.checked ? "true" : "false");
     fd.append("bilingual", docBilingual.checked ? "true" : "false");
-
     docTranslateBtn.disabled = true;
     hideDocError();
     hideResult();
     progressArea.classList.remove("hidden");
     setProgress(0, "正在上传文件…");
-
     fetch("/api/documents/translate", { method: "POST", body: fd })
       .then(safeJson)
       .then(function (res) {
@@ -326,7 +248,6 @@
       });
   });
 
-  // ---- 进度轮询 ----
   function pollStatus() {
     if (!currentTaskId) return;
     fetch("/api/documents/status/" + currentTaskId)
@@ -347,50 +268,22 @@
         }
       })
       .catch(function (err) {
-        // 查询状态偶发失败(服务重启/网络波动): 自动重试, 不打断翻译进度
         if (window.__docPollRetry === undefined) window.__docPollRetry = 0;
         window.__docPollRetry += 1;
-        if (window.__docPollRetry <= 10) {
-          setTimeout(pollStatus, 3000);
-        } else {
-          window.__docPollRetry = 0;
-          progressArea.classList.add("hidden");
-          showDocError(err.message || "查询任务状态失败，请刷新页面查看。");
-          docTranslateBtn.disabled = false;
-        }
+        if (window.__docPollRetry <= 10) { setTimeout(pollStatus, 3000); }
+        else { window.__docPollRetry = 0; progressArea.classList.add("hidden"); showDocError(err.message || "查询任务状态失败，请刷新页面查看。"); docTranslateBtn.disabled = false; }
       });
   }
 
-  function setProgress(pct, msg) {
-    progressBar.style.width = pct + "%";
-    progressText.textContent = msg;
-  }
+  function setProgress(pct, msg) { progressBar.style.width = pct + "%"; progressText.textContent = msg; }
 
-  // ---- 结果展示与下载 ----
   function finishSuccess() {
-    setTimeout(function () {
-      progressArea.classList.add("hidden");
-      docResultArea.classList.remove("hidden");
-      downloadPdf.href = "/api/documents/download/" + currentTaskId;
-      docTranslateBtn.disabled = false;
-    }, 400);
+    setTimeout(function () { progressArea.classList.add("hidden"); docResultArea.classList.remove("hidden"); downloadPdf.href = "/api/documents/download/" + currentTaskId; docTranslateBtn.disabled = false; }, 400);
   }
+  function hideResult() { docResultArea.classList.add("hidden"); }
+  function showDocError(msg) { docErrorBox.textContent = "⚠ " + msg; docErrorBox.classList.remove("hidden"); }
+  function hideDocError() { docErrorBox.classList.add("hidden"); }
 
-  function hideResult() {
-    docResultArea.classList.add("hidden");
-  }
-
-  function showDocError(msg) {
-    docErrorBox.textContent = "⚠ " + msg;
-    docErrorBox.classList.remove("hidden");
-  }
-  function hideDocError() {
-    docErrorBox.classList.add("hidden");
-  }
-
-  // ============================================================
-  // 图片翻译逻辑 (OCR 识别图片内文字 -> 翻译 -> PDF)
-  // ============================================================
   var imgDropZone = document.getElementById("imgDropZone");
   var imgFileInput = document.getElementById("imgFileInput");
   var imgFileInfo = document.getElementById("imgFileInfo");
@@ -408,44 +301,24 @@
   var imgSourceLang = document.getElementById("imgSourceLang");
   var imgTargetLang = document.getElementById("imgTargetLang");
   var imgOutput = document.getElementById("imgOutput");
-
+  var tabUsage = document.getElementById("tabUsage");
+  var panelUsage = document.getElementById("panelUsage");
   var selectedImage = null;
   var imageTaskId = null;
   var IMG_EXTS = ["png", "jpg", "jpeg", "bmp", "webp", "tiff", "tif"];
 
-  // ---- 图片选择: 点击 & 拖拽 ----
   imgDropZone.addEventListener("click", function () { imgFileInput.click(); });
-  imgDropZone.addEventListener("dragover", function (e) {
-    e.preventDefault();
-    imgDropZone.classList.add("drag-over");
-  });
-  imgDropZone.addEventListener("dragleave", function () {
-    imgDropZone.classList.remove("drag-over");
-  });
-  imgDropZone.addEventListener("drop", function (e) {
-    e.preventDefault();
-    imgDropZone.classList.remove("drag-over");
-    if (e.dataTransfer.files.length) selectImage(e.dataTransfer.files[0]);
-  });
-  imgFileInput.addEventListener("change", function () {
-    if (imgFileInput.files.length) selectImage(imgFileInput.files[0]);
-  });
+  imgDropZone.addEventListener("dragover", function (e) { e.preventDefault(); imgDropZone.classList.add("drag-over"); });
+  imgDropZone.addEventListener("dragleave", function () { imgDropZone.classList.remove("drag-over"); });
+  imgDropZone.addEventListener("drop", function (e) { e.preventDefault(); imgDropZone.classList.remove("drag-over"); if (e.dataTransfer.files.length) selectImage(e.dataTransfer.files[0]); });
+  imgFileInput.addEventListener("change", function () { if (imgFileInput.files.length) selectImage(imgFileInput.files[0]); });
 
   function selectImage(file) {
     var ext = (file.name.split(".").pop() || "").toLowerCase();
-    if (IMG_EXTS.indexOf(ext) === -1) {
-      showImgError("不支持的文件格式 ." + ext +
-                   "，请上传图片（PNG / JPG / JPEG / BMP / WEBP）。");
-      return;
-    }
-    if (file.size > 20 * 1024 * 1024) {
-      showImgError("文件过大（" + Math.round(file.size / 1048576) +
-                   "MB），单文件请控制在 20MB 以内。");
-      return;
-    }
+    if (IMG_EXTS.indexOf(ext) === -1) { showImgError("不支持的文件格式 ." + ext + "，请上传图片（PNG / JPG / JPEG / BMP / WEBP）。"); return; }
+    if (file.size > 20 * 1024 * 1024) { showImgError("文件过大（" + Math.round(file.size / 1048576) + "MB），单文件请控制在 20MB 以内。"); return; }
     selectedImage = file;
-    imgFileName.textContent = "🖼️ " + file.name +
-      "（" + Math.round(file.size / 1024) + " KB）";
+    imgFileName.textContent = "🖼️ " + file.name + "（" + Math.round(file.size / 1024) + " KB）";
     imgFileInfo.classList.remove("hidden");
     imgDropZone.classList.add("hidden");
     imgTranslateBtn.disabled = false;
@@ -460,7 +333,6 @@
     imgTranslateBtn.disabled = true;
   });
 
-  // ---- 上传并翻译 ----
   imgTranslateBtn.addEventListener("click", function () {
     if (!selectedImage) return;
     var fd = new FormData();
@@ -470,13 +342,11 @@
     fd.append("use_online", imgUseOnline.checked ? "true" : "false");
     fd.append("bilingual", imgBilingual.checked ? "true" : "false");
     fd.append("output", imgOutput.value);
-
     imgTranslateBtn.disabled = true;
     hideImgError();
     hideImgResult();
     imgProgressArea.classList.remove("hidden");
     setImgProgress(0, "正在上传图片…");
-
     fetch("/api/images/translate", { method: "POST", body: fd })
       .then(safeJson)
       .then(function (res) {
@@ -491,7 +361,6 @@
       });
   });
 
-  // ---- 进度轮询 ----
   function pollImageStatus() {
     if (!imageTaskId) return;
     fetch("/api/documents/status/" + imageTaskId)
@@ -512,49 +381,22 @@
         }
       })
       .catch(function (err) {
-        // 查询状态偶发失败(服务重启/网络波动): 自动重试, 不打断翻译进度
         if (window.__imgPollRetry === undefined) window.__imgPollRetry = 0;
         window.__imgPollRetry += 1;
-        if (window.__imgPollRetry <= 10) {
-          setTimeout(pollImageStatus, 3000);
-        } else {
-          window.__imgPollRetry = 0;
-          imgProgressArea.classList.add("hidden");
-          showImgError(err.message || "查询任务状态失败，请刷新页面查看。");
-          imgTranslateBtn.disabled = false;
-        }
+        if (window.__imgPollRetry <= 10) { setTimeout(pollImageStatus, 3000); }
+        else { window.__imgPollRetry = 0; imgProgressArea.classList.add("hidden"); showImgError(err.message || "查询任务状态失败，请刷新页面查看。"); imgTranslateBtn.disabled = false; }
       });
   }
 
-  function setImgProgress(pct, msg) {
-    imgProgressBar.style.width = pct + "%";
-    imgProgressText.textContent = msg;
-  }
+  function setImgProgress(pct, msg) { imgProgressBar.style.width = pct + "%"; imgProgressText.textContent = msg; }
 
   function finishImgSuccess() {
-    setTimeout(function () {
-      imgProgressArea.classList.add("hidden");
-      imgResultArea.classList.remove("hidden");
-      imgDownloadPdf.href = "/api/documents/download/" + imageTaskId;
-      imgDownloadPdf.textContent =
-        (imgOutput.value === "image") ? "下载图片" : "下载 PDF";
-      imgTranslateBtn.disabled = false;
-    }, 400);
+    setTimeout(function () { imgProgressArea.classList.add("hidden"); imgResultArea.classList.remove("hidden"); imgDownloadPdf.href = "/api/documents/download/" + imageTaskId; imgDownloadPdf.textContent = (imgOutput.value === "image") ? "下载图片" : "下载 PDF"; imgTranslateBtn.disabled = false; }, 400);
   }
-  function hideImgResult() {
-    imgResultArea.classList.add("hidden");
-  }
-  function showImgError(msg) {
-    imgErrorBox.textContent = "⚠ " + msg;
-    imgErrorBox.classList.remove("hidden");
-  }
-  function hideImgError() {
-    imgErrorBox.classList.add("hidden");
-  }
+  function hideImgResult() { imgResultArea.classList.add("hidden"); }
+  function showImgError(msg) { imgErrorBox.textContent = "⚠ " + msg; imgErrorBox.classList.remove("hidden"); }
+  function hideImgError() { imgErrorBox.classList.add("hidden"); }
 
-  // ============================================================
-  // 设置面板
-  // ============================================================
   var settingsModal = document.getElementById("settingsModal");
   var settingsBtn = document.getElementById("settingsBtn");
   var settingsClose = document.getElementById("settingsClose");
@@ -571,34 +413,18 @@
   var settingsSaveBtn = document.getElementById("settingsSaveBtn");
   var settingsMsg = document.getElementById("settingsMsg");
 
-  // 各引擎的 Key 字段配置
   var PROVIDER_FIELDS = {
-    libretranslate: [
-      { key: "libretranslate_url", label: "实例地址", placeholder: "https://libretranslate.com （可自建）" },
-      { key: "libretranslate_api_key", label: "API Key（可选）", placeholder: "公共实例可能需要，自建则不需要" }
-    ],
+    libretranslate: [{ key: "libretranslate_url", label: "实例地址", placeholder: "https://libretranslate.com （可自建）" }, { key: "libretranslate_api_key", label: "API Key（可选）", placeholder: "公共实例可能需要，自建则不需要" }],
     deepl: [{ key: "deepl_api_key", label: "DeepL API Key", placeholder: "如 xxxx-xxxx-xxxx-xxxx" }],
-    baidu: [
-      { key: "baidu_app_id", label: "APP ID", placeholder: "百度翻译开放平台 AppID" },
-      { key: "baidu_secret_key", label: "密钥", placeholder: "密钥" }
-    ],
-    tencent: [
-      { key: "tencent_secret_id", label: "SecretId", placeholder: "腾讯云 SecretId" },
-      { key: "tencent_secret_key", label: "SecretKey", placeholder: "腾讯云 SecretKey" }
-    ],
-    openai: [
-      { key: "openai_api_key", label: "API Key", placeholder: "sk-..." },
-      { key: "openai_base_url", label: "接口地址", placeholder: "https://api.openai.com/v1" },
-      { key: "openai_model", label: "模型", placeholder: "gpt-4o-mini" }
-    ]
+    baidu: [{ key: "baidu_app_id", label: "APP ID", placeholder: "百度翻译开放平台 AppID" }, { key: "baidu_secret_key", label: "密钥", placeholder: "密钥" }],
+    tencent: [{ key: "tencent_secret_id", label: "SecretId", placeholder: "腾讯云 SecretId" }, { key: "tencent_secret_key", label: "SecretKey", placeholder: "腾讯云 SecretKey" }],
+    openai: [{ key: "openai_api_key", label: "API Key", placeholder: "sk-..." }, { key: "openai_base_url", label: "接口地址", placeholder: "https://api.openai.com/v1" }, { key: "openai_model", label: "模型", placeholder: "gpt-4o-mini" }]
   };
   var settingsData = { glossary: { en: {}, zh: {} } };
 
   settingsBtn.addEventListener("click", openSettings);
   settingsClose.addEventListener("click", function () { settingsModal.classList.add("hidden"); });
-  settingsModal.addEventListener("click", function (e) {
-    if (e.target === settingsModal) settingsModal.classList.add("hidden");
-  });
+  settingsModal.addEventListener("click", function (e) { if (e.target === settingsModal) settingsModal.classList.add("hidden"); });
 
   function openSettings() {
     settingsMsg.textContent = "";
@@ -618,10 +444,9 @@
   function renderKeyFields() {
     var provider = providerSelect.value;
     var fields = PROVIDER_FIELDS[provider] || [];
-    if (!fields.length) {
-      keyFields.innerHTML = '<p class="settings-hint">Google / MyMemory 为免费引擎，无需配置 Key。</p>';
-      return;
-    }
+    if (!fields.length) { keyFields.innerHTML = '
+Google / MyMemory 为免费引擎，无需配置 Key。
+'; return; }
     keyFields.innerHTML = "";
     fields.forEach(function (f) {
       var row = document.createElement("div");
@@ -633,7 +458,6 @@
       input.className = "settings-input";
       input.placeholder = f.placeholder;
       input.dataset.key = f.key;
-      // 已配置的 Key 不回显, 用提示占位
       if (settingsData[f.key + "_configured"]) input.placeholder = "已配置（留空保持不变）";
       row.appendChild(label);
       row.appendChild(input);
@@ -642,33 +466,24 @@
   }
   providerSelect.addEventListener("change", renderKeyFields);
 
-  // ---- 术语表 ----
   function renderGlossary() {
     var g = settingsData.glossary || { en: {}, zh: {} };
     var lang = glossaryLang.value;
     var entries = Object.keys(g[lang] || {});
-    if (!entries.length) {
-      glossaryList.innerHTML = '<p class="glossary-empty">暂无术语，添加后翻译将强制使用指定译法。</p>';
-      return;
-    }
+    if (!entries.length) { glossaryList.innerHTML = '
+暂无术语，添加后翻译将强制使用指定译法。
+'; return; }
     glossaryList.innerHTML = "";
     entries.forEach(function (term) {
       var item = document.createElement("div");
       item.className = "glossary-item";
-      item.innerHTML =
-        '<span><span class="gt-term"></span><span class="gt-arrow">→</span><span class="gt-target"></span></span>' +
-        '<button class="gt-del" title="删除">✕</button>';
+      item.innerHTML = '→' + '✕';
       item.querySelector(".gt-term").textContent = term;
       item.querySelector(".gt-target").textContent = g[lang][term];
       item.querySelector(".gt-del").addEventListener("click", function () {
-        fetch("/api/glossary?lang=" + lang + "&term=" + encodeURIComponent(term),
-              { method: "DELETE" })
+        fetch("/api/glossary?lang=" + lang + "&term=" + encodeURIComponent(term), { method: "DELETE" })
           .then(safeJson)
-          .then(function (res) {
-            var d = res.data;
-            settingsData.glossary = d.glossary;
-            renderGlossary();
-          });
+          .then(function (res) { var d = res.data; settingsData.glossary = d.glossary; renderGlossary(); });
       });
       glossaryList.appendChild(item);
     });
@@ -679,56 +494,72 @@
     var term = glossaryTerm.value.trim();
     var target = glossaryTarget.value.trim();
     if (!term || !target) { flashMsg("术语与译文不能为空", true); return; }
-    fetch("/api/glossary", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lang: glossaryLang.value, term: term, target: target })
-    }).then(safeJson).then(function (res) {
-      var d = res.data;
-      if (d.error) { flashMsg(d.error, true); return; }
-      glossaryTerm.value = "";
-      glossaryTarget.value = "";
-      settingsData.glossary = d.glossary;
-      renderGlossary();
-      flashMsg(d.message, false);
-    });
-  });
-
-  // ---- 翻译记忆 ----
-  function renderTmStats(stats) {
-    tmStats.textContent = stats ? "（" + stats.entries + " 条记忆，命中 " + stats.hits + " 次）" : "";
-  }
-  tmClearBtn.addEventListener("click", function () {
-    fetch("/api/tm/clear", { method: "POST" })
+    fetch("/api/glossary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lang: glossaryLang.value, term: term, target: target }) })
       .then(safeJson)
       .then(function (res) {
         var d = res.data;
-        renderTmStats(d.stats);
-        flashMsg("翻译记忆已清空", false);
+        if (d.error) { flashMsg(d.error, true); return; }
+        glossaryTerm.value = "";
+        glossaryTarget.value = "";
+        settingsData.glossary = d.glossary;
+        renderGlossary();
+        flashMsg(d.message, false);
       });
   });
 
-  // ---- 保存 ----
-  settingsSaveBtn.addEventListener("click", function () {
-    var payload = { translator_provider: providerSelect.value };
-    keyFields.querySelectorAll("input[data-key]").forEach(function (input) {
-      if (input.value.trim()) payload[input.dataset.key] = input.value.trim();
-    });
-    payload.tm_enabled = tmEnabled.checked;
-    fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(safeJson).then(function (res) {
-      var d = res.data;
-      if (d.error) { flashMsg(d.error, true); return; }
-      flashMsg("设置已保存 ✓", false);
-    });
+  function renderTmStats(stats) { tmStats.textContent = stats ? "（" + stats.entries + " 条记忆，命中 " + stats.hits + " 次）" : ""; }
+  tmClearBtn.addEventListener("click", function () {
+    fetch("/api/tm/clear", { method: "POST" }).then(safeJson).then(function (res) { var d = res.data; renderTmStats(d.stats); flashMsg("翻译记忆已清空", false); });
   });
 
-  function flashMsg(msg, isError) {
-    settingsMsg.textContent = msg;
-    settingsMsg.className = "settings-msg" + (isError ? " error" : "");
-    setTimeout(function () { settingsMsg.textContent = ""; }, 2500);
+  settingsSaveBtn.addEventListener("click", function () {
+    var payload = { translator_provider: providerSelect.value };
+    keyFields.querySelectorAll("input[data-key]").forEach(function (input) { if (input.value.trim()) payload[input.dataset.key] = input.value.trim(); });
+    payload.tm_enabled = tmEnabled.checked;
+    fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      .then(safeJson)
+      .then(function (res) { var d = res.data; if (d.error) { flashMsg(d.error, true); return; } flashMsg("设置已保存 ✓", false); });
+  });
+
+  function flashMsg(msg, isError) { settingsMsg.textContent = msg; settingsMsg.className = "settings-msg" + (isError ? " error" : ""); setTimeout(function () { settingsMsg.textContent = ""; }, 2500); }
+
+  var usageRefreshBtn = document.getElementById("usageRefreshBtn");
+  var usageClearBtn = document.getElementById("usageClearBtn");
+
+  function loadUsage() {
+    fetch("/api/usage").then(safeJson).then(function (res) {
+      if (!res.ok) return;
+      var d = res.data;
+      document.getElementById("todayCalls").textContent = fmt(d.today.count || 0);
+      document.getElementById("todayChars").textContent = fmt((d.today.total_input || 0) + (d.today.total_output || 0));
+      document.getElementById("todayTokens").textContent = fmt(d.today.total_tokens || 0);
+      document.getElementById("totalCalls").textContent = fmt(d.total.total_calls || 0);
+      renderRows("dailyTable", d.daily, ["date","count","total_input","total_output","total_tokens","success_count","fail_count"]);
+      renderRows("engineTable", d.engines, ["engine","count","total_input","total_output","total_tokens","success_count"]);
+    });
+    loadRecent();
   }
+
+  function loadRecent() {
+    fetch("/api/usage/recent?limit=50").then(safeJson).then(function (res) {
+      if (!res.ok) return;
+      var rows = res.data.records || [];
+      var tbody = document.querySelector("#recentTable tbody");
+      tbody.innerHTML = rows.map(function (r) {
+        return "" + "" + r.ts + "" + "" + r.engine + "" + "" + (r.source||"") + "→" + (r.target||"") + "" + "" + fmt(r.input_chars) + "" + "" + fmt(r.output_chars) + "" + "" + fmt(r.est_tokens) + "" + "" + (r.success ? "✅" : "❌") + "" + "";
+      }).join("");
+    });
+  }
+
+  function renderRows(tableId, rows, keys) {
+    var tbody = document.querySelector("#" + tableId + " tbody");
+    tbody.innerHTML = rows.map(function (r) {
+      return "" + keys.map(function (k) { return "" + fmt(r[k]) + ""; }).join("") + "";
+    }).join("");
+  }
+
+  function fmt(v) { if (v === null || v === undefined) return "0"; if (typeof v === "number") return v.toLocaleString(); return v; }
+
+  if (usageRefreshBtn) usageRefreshBtn.addEventListener("click", loadUsage);
+  if (usageClearBtn) usageClearBtn.addEventListener("click", function () { if (!confirm("确定清空所有用量记录？此操作不可撤销。")) return; fetch("/api/usage/clear", { method: "POST" }).then(safeJson).then(function () { loadUsage(); }); });
 })();
