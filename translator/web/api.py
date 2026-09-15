@@ -402,10 +402,7 @@ def api_tm_clear():
     return jsonify({"ok": True, "message": "翻译记忆已清空",
                     "stats": tm_mod.stats()})
 
-# 用量统计
-# @web_bp.route("/api/usage")
-# def api_usage():
-#     return jsonify(usage_tracker.stats())
+
 
 # 用量统计
 @web_bp.route("/api/usage")
