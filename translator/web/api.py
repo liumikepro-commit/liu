@@ -97,11 +97,13 @@ def api_translate():
     if target not in SUPPORTED_LANGUAGES:
         return jsonify({"error": f"不支持的 target: {target}"}), 400
 
+
     result = translate(text, source=source, target=target, use_online=use_online)
+    if not result.get("error") and result.get("translation"):
+        usage_tracker.add(len(result["translation"]))
     if result.get("error"):
         return jsonify(result), 400
     return jsonify(result)
-
 
 # ================================================================
 # 文档翻译接口
